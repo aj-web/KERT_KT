@@ -3,6 +3,7 @@
 """
 import os
 import sys
+import pickle
 
 # 添加项目路径
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -46,4 +47,12 @@ print(f"Train samples: {len(dataset_info['train'])}")
 print(f"Val samples: {len(dataset_info['val'])}")
 print(f"Test samples: {len(dataset_info['test'])}")
 print(f"\n训练数据标签分布: {dataset_info['train']['correct'].mean():.3f}")
+
+# 保存为pkl文件（重要！实验脚本需要读取这个文件）
+print("\n保存处理后的数据到pkl文件...")
+datasets = {'assist09': dataset_info}
+with open(old_pkl, 'wb') as f:
+    pickle.dump(datasets, f)
+print(f"✓ 已保存: {old_pkl}")
+
 print("\n✅ 数据重新生成成功！现在可以运行实验了。")
