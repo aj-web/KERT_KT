@@ -43,19 +43,33 @@ def create_data_loaders(dataset_info, batch_size=32, max_seq_len=200):
     collator = DataCollator(max_seq_len)
 
     # Create data loaders
+    # 性能优化：使用多进程加载数据（num_workers > 0）
+    # Windows系统可能需要num_workers=0，Linux/Mac可以使用num_workers=4
+    import platform
+    num_workers = 0 if platform.system() == 'Windows' else 4
+    
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,
-        collate_fn=collator.collate_fn, num_workers=0
+        collate_fn=collator.collate_fn, 
+        num_workers=num_workers,
+        pin_memory=True if torch.cuda.is_available() else False,
+        persistent_workers=True if num_workers > 0 else False
     )
 
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
-        collate_fn=collator.collate_fn, num_workers=0
+        collate_fn=collator.collate_fn, 
+        num_workers=num_workers,
+        pin_memory=True if torch.cuda.is_available() else False,
+        persistent_workers=True if num_workers > 0 else False
     )
 
     test_loader = DataLoader(
         test_dataset, batch_size=batch_size, shuffle=False,
-        collate_fn=collator.collate_fn, num_workers=0
+        collate_fn=collator.collate_fn, 
+        num_workers=num_workers,
+        pin_memory=True if torch.cuda.is_available() else False,
+        persistent_workers=True if num_workers > 0 else False
     )
 
     return train_loader, val_loader, test_loader

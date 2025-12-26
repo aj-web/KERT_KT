@@ -151,6 +151,8 @@ class KERKT(nn.Module):
         self.val_loader = None
         self.eval_frequency = 10  # Evaluate every N batches
         self.batch_count = 0
+        self.concept_embeddings_update_frequency = 10  # 每N个batch更新一次concept_embeddings
+        self._concept_graph_hash = None  # 用于检测concept_graph是否变化
 
     def forward(self, batch, concept_graph):
         """
@@ -192,9 +194,24 @@ class KERKT(nn.Module):
         Returns:
             losses: dictionary of loss values
         """
-        # Update concept embeddings
-        self.concept_embeddings = self.graph_module(concept_graph)
-        self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.clone()
+        # 性能优化：只在需要时更新concept_embeddings（concept_graph是固定的）
+        # 检查是否需要更新（每N个batch或concept_graph变化）
+        need_update = False
+        current_hash = id(concept_graph)  # 简单的hash检查
+        
+        if (self._concept_graph_hash != current_hash or 
+            self.concept_embeddings is None or
+            self.batch_count % self.concept_embeddings_update_frequency == 0):
+            need_update = True
+            self._concept_graph_hash = current_hash
+        
+        if need_update:
+            # 更新concept embeddings（图卷积计算）
+            self.concept_embeddings = self.graph_module(concept_graph)
+            # 使用detach()而不是clone()，避免不必要的梯度计算
+            self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.detach()
+        
+        self.batch_count += 1
 
         # KT prediction
         predictions, hidden_states = self.kt_predictor(
@@ -550,6 +567,8 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
 
     for epoch in range(50, n_epochs):
         model.train()
+        # 重置batch计数，确保每个epoch开始时更新concept_embeddings
+        model.batch_count = 0
         epoch_losses = []
 
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}/{n_epochs}"):
