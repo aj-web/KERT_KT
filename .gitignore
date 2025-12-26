@@ -1,0 +1,10 @@
+### Example user template template
+### Example user template
+
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+/张慧玲-毕业论文-11.22.txt
+/data/*.pkl
