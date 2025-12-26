@@ -59,7 +59,7 @@ class KTDataLoader:
         self._create_synthetic_junyi()
 
     def _create_synthetic_assist09(self):
-        """Create synthetic ASSIST09-like data for demonstration"""
+        """Create synthetic ASSIST09-like data with realistic learning patterns"""
         np.random.seed(42)
 
         # Simulate ASSIST09 characteristics
@@ -68,11 +68,26 @@ class KTDataLoader:
         n_concepts = 124
         total_interactions = 325637
 
+        # 步骤1：创建Q-matrix（question到concept的固定映射）
+        print("Creating Q-matrix...")
+        q_matrix = {}  # question_id -> concept_id
+        for q_id in range(n_questions):
+            # 每个question对应1个concept（简化）
+            concept_id = q_id % n_concepts
+            q_matrix[q_id] = concept_id
+
+        # 步骤2：为每个question分配难度
+        question_difficulty = np.random.normal(0, 1, n_questions)  # 标准正态分布
+
+        # 步骤3：生成学生交互数据
         data = []
         student_id = 0
         interaction_count = 0
 
         while interaction_count < total_interactions:
+            # 初始化学生对每个concept的掌握水平
+            student_ability = np.random.normal(0, 1, n_concepts)  # 每个concept的掌握水平
+
             # Each student has varying sequence length
             seq_length = np.random.poisson(78) + 5  # Mean around 78
 
@@ -80,9 +95,17 @@ class KTDataLoader:
                 if interaction_count >= total_interactions:
                     break
 
+                # 随机选择一个question
                 question_id = np.random.randint(0, n_questions)
-                concept_id = np.random.randint(0, n_concepts)
-                correct = np.random.binomial(1, 0.69)  # 69.2% accuracy
+                concept_id = q_matrix[question_id]  # 固定映射
+
+                # 基于IRT模型计算正确概率：P(correct) = sigmoid(ability - difficulty)
+                ability = student_ability[concept_id]
+                difficulty = question_difficulty[question_id]
+                prob_correct = 1 / (1 + np.exp(-(ability - difficulty)))
+
+                # 生成答案
+                correct = np.random.binomial(1, prob_correct)
 
                 data.append({
                     'student_id': student_id,
@@ -91,6 +114,12 @@ class KTDataLoader:
                     'correct': correct,
                     'timestamp': interaction_count
                 })
+
+                # 学习效应：答对后能力提升
+                if correct == 1:
+                    student_ability[concept_id] += 0.05  # 小幅提升
+                else:
+                    student_ability[concept_id] += 0.01  # 答错也有小幅提升
 
                 interaction_count += 1
 
@@ -100,10 +129,10 @@ class KTDataLoader:
 
         df = pd.DataFrame(data)
         df.to_csv(os.path.join(self.data_dir, 'assist09.csv'), index=False)
-        print("Synthetic ASSIST09 data created")
+        print(f"Synthetic ASSIST09 data created with Q-matrix (avg correct rate: {df['correct'].mean():.3f})")
 
     def _create_synthetic_assist17(self):
-        """Create synthetic ASSIST17-like data"""
+        """Create synthetic ASSIST17-like data with realistic learning patterns"""
         np.random.seed(43)
 
         n_students = 1709
@@ -111,11 +140,17 @@ class KTDataLoader:
         n_concepts = 102
         total_interactions = 942816
 
+        # 创建Q-matrix
+        print("Creating Q-matrix for ASSIST17...")
+        q_matrix = {q_id: q_id % n_concepts for q_id in range(n_questions)}
+        question_difficulty = np.random.normal(0, 1, n_questions)
+
         data = []
         student_id = 0
         interaction_count = 0
 
         while interaction_count < total_interactions:
+            student_ability = np.random.normal(0, 1, n_concepts)
             seq_length = np.random.poisson(551) + 5  # Mean around 551
 
             for i in range(seq_length):
@@ -123,8 +158,12 @@ class KTDataLoader:
                     break
 
                 question_id = np.random.randint(0, n_questions)
-                concept_id = np.random.randint(0, n_concepts)
-                correct = np.random.binomial(1, 0.735)  # 73.5% accuracy
+                concept_id = q_matrix[question_id]
+
+                ability = student_ability[concept_id]
+                difficulty = question_difficulty[question_id]
+                prob_correct = 1 / (1 + np.exp(-(ability - difficulty)))
+                correct = np.random.binomial(1, prob_correct)
 
                 data.append({
                     'student_id': student_id,
@@ -133,6 +172,11 @@ class KTDataLoader:
                     'correct': correct,
                     'timestamp': interaction_count
                 })
+
+                if correct == 1:
+                    student_ability[concept_id] += 0.05
+                else:
+                    student_ability[concept_id] += 0.01
 
                 interaction_count += 1
 
@@ -140,10 +184,10 @@ class KTDataLoader:
 
         df = pd.DataFrame(data)
         df.to_csv(os.path.join(self.data_dir, 'assist17.csv'), index=False)
-        print("Synthetic ASSIST17 data created")
+        print(f"Synthetic ASSIST17 data created with Q-matrix (avg correct rate: {df['correct'].mean():.3f})")
 
     def _create_synthetic_junyi(self):
-        """Create synthetic Junyi-like data"""
+        """Create synthetic Junyi-like data with realistic learning patterns"""
         np.random.seed(44)
 
         n_students = 10000
@@ -151,11 +195,17 @@ class KTDataLoader:
         n_concepts = 835
         total_interactions = 1062631
 
+        # 创建Q-matrix
+        print("Creating Q-matrix for Junyi...")
+        q_matrix = {q_id: q_id % n_concepts for q_id in range(n_questions)}
+        question_difficulty = np.random.normal(0, 1, n_questions)
+
         data = []
         student_id = 0
         interaction_count = 0
 
         while interaction_count < total_interactions:
+            student_ability = np.random.normal(0, 1, n_concepts)
             seq_length = np.random.poisson(1062) + 5  # Mean around 1062
 
             for i in range(seq_length):
@@ -163,8 +213,12 @@ class KTDataLoader:
                     break
 
                 question_id = np.random.randint(0, n_questions)
-                concept_id = np.random.randint(0, n_concepts)
-                correct = np.random.binomial(1, 0.758)  # 75.8% accuracy
+                concept_id = q_matrix[question_id]
+
+                ability = student_ability[concept_id]
+                difficulty = question_difficulty[question_id]
+                prob_correct = 1 / (1 + np.exp(-(ability - difficulty)))
+                correct = np.random.binomial(1, prob_correct)
 
                 data.append({
                     'student_id': student_id,
@@ -174,13 +228,18 @@ class KTDataLoader:
                     'timestamp': interaction_count
                 })
 
+                if correct == 1:
+                    student_ability[concept_id] += 0.05
+                else:
+                    student_ability[concept_id] += 0.01
+
                 interaction_count += 1
 
             student_id += 1
 
         df = pd.DataFrame(data)
         df.to_csv(os.path.join(self.data_dir, 'junyi.csv'), index=False)
-        print("Synthetic Junyi data created")
+        print(f"Synthetic Junyi data created with Q-matrix (avg correct rate: {df['correct'].mean():.3f})")
 
     def preprocess_data(self, dataset_name, min_interactions=5, force_download=False):
         """Preprocess the dataset according to paper specifications
