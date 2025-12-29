@@ -99,9 +99,16 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
     print(f"  batch_size: {config['batch_size']}, dropout: {config['dropout']}")
     print(f"{'='*50}")
 
+    # Determine device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+    if torch.cuda.is_available():
+        print(f"  GPU: {torch.cuda.get_device_name(0)}")
+        print(f"  CUDA Version: {torch.version.cuda}")
+    
     # Load dataset
     dataset_info = load_processed_data(dataset_name)
-    concept_graph = torch.tensor(dataset_info['concept_graph'], dtype=torch.float32)
+    concept_graph = torch.tensor(dataset_info['concept_graph'], dtype=torch.float32).to(device)
 
     print(f"Dataset statistics:")
     print(f"  Questions: {dataset_info['n_questions']}")
@@ -136,8 +143,14 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
             gamma=config['gamma'],
             lr_kt=config['lr_kt_pretrain'],  # 预训练阶段学习率
             lr_rl=config['lr_rl'],
-            lambda_rl=config['lambda_rl']
+            lambda_rl=config['lambda_rl'],
+            l2_lambda=config.get('l2_lambda', 1e-5),  # L2正则化系数
+            dropout=config.get('dropout', 0.2)  # Dropout率
         )
+        
+        # Move model to device
+        model = model.to(device)
+        print(f"Model moved to {device}")
 
         # Create checkpoint directory
         checkpoint_dir = os.path.join(project_root, 'checkpoints', dataset_name)
@@ -154,7 +167,10 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
             n_epochs=config['n_epochs'], patience=config['patience'],
             checkpoint_path=best_model_path,
             lr_kt_pretrain=config['lr_kt_pretrain'],
-            lr_kt_finetune=config['lr_kt_finetune']
+            lr_kt_finetune=config['lr_kt_finetune'],
+            warmup_steps=config.get('warmup_steps', 0),
+            lr_decay_patience=config.get('lr_decay_patience', None),
+            lr_decay_factor=config.get('lr_decay_factor', 0.5)
         )
 
         # Load best model for testing
@@ -289,13 +305,17 @@ def get_dataset_config(dataset_name):
             'lambda_rl': 0.1,      # λ_RL
             
             # Training parameters
-            'lr_kt_pretrain': 0.001,   # 预训练阶段
-            'lr_kt_finetune': 0.0005,  # 微调阶段
+            'lr_kt_pretrain': 0.0005,   # 优化：降低预训练学习率，减缓过拟合
+            'lr_kt_finetune': 0.00025,  # 优化：相应降低微调学习率
             'batch_size': 32,
-            'dropout': 0.2,
+            'dropout': 0.4,            # 优化：进一步增大dropout，防止过拟合
             'max_seq_len': 200,
             'n_epochs': 100,
-            'patience': 10
+            'patience': 7,
+            'l2_lambda': 1e-4,         # 保持：增强L2正则化
+            'warmup_steps': 4000,        # 新增：学习率Warmup步数
+            'lr_decay_patience': 3,    # 新增：学习率衰减patience
+            'lr_decay_factor': 0.5     # 新增：学习率衰减因子
         },
         'assist17': {
             # Model hyperparameters (论文表4.4)

@@ -10,3 +10,4 @@ gen
 /data/*.pkl
 *.zip
 *.csv
+*.pyc

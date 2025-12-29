@@ -5,6 +5,7 @@ Complete implementation integrating all modules
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
@@ -83,7 +84,8 @@ class KERKT(nn.Module):
 
     def __init__(self, n_questions, n_concepts, embed_dim=128, hidden_dim=256,
                  n_layers=2, alpha=0.7, beta=0.3, lambda_decay=0.1,
-                 gamma=0.99, lr_kt=1e-3, lr_rl=1e-4, lambda_rl=0.1):
+                 gamma=0.99, lr_kt=1e-3, lr_rl=1e-4, lambda_rl=0.1, 
+                 l2_lambda=1e-5, dropout=0.2):
         """
         Initialize KER-KT model
 
@@ -99,6 +101,8 @@ class KERKT(nn.Module):
             lr_kt: KT learning rate
             lr_rl: RL learning rate
             lambda_rl: RL loss weight
+            l2_lambda: L2 regularization coefficient
+            dropout: dropout rate
         """
         super(KERKT, self).__init__()
 
@@ -117,7 +121,7 @@ class KERKT(nn.Module):
 
         # KT Predictor module
         self.kt_predictor = KTPredictor(
-            n_questions, n_concepts, embed_dim, hidden_dim, self.concept_embeddings
+            n_questions, n_concepts, embed_dim, hidden_dim, self.concept_embeddings, dropout=dropout
         )
 
         # Actor-Critic module for threshold optimization
@@ -131,7 +135,7 @@ class KERKT(nn.Module):
         self.experience_buffer = ExperienceBuffer(capacity=1000)
 
         # Loss functions
-        self.kt_loss_fn = KTLoss()
+        self.kt_loss_fn = KTLoss(l2_lambda=l2_lambda)
         self.graph_loss_fn = TripleDecisionLoss()
 
         # Optimizers
@@ -228,7 +232,10 @@ class KERKT(nn.Module):
         )
 
         # Graph regularization loss
-        graph_loss = self.graph_loss_fn(self.concept_embeddings, concept_graph)
+        # 每次重新计算concept_embeddings用于graph_loss，确保计算图是新的
+        # 这样可以避免使用已释放的计算图
+        concept_embeddings_for_loss = self.graph_module(concept_graph)
+        graph_loss = self.graph_loss_fn(concept_embeddings_for_loss, concept_graph)
 
         # Total KT loss
         total_kt_loss = kt_loss + 0.1 * graph_loss
@@ -491,7 +498,8 @@ class KERKT(nn.Module):
 
 
 def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, patience=10, 
-                  checkpoint_path='checkpoint_path', lr_kt_pretrain=0.001, lr_kt_finetune=0.0005):
+                  checkpoint_path='checkpoint_path', lr_kt_pretrain=0.001, lr_kt_finetune=0.0005,
+                  warmup_steps=0, lr_decay_patience=None, lr_decay_factor=0.5):
     """
     Complete training pipeline for KER-KT (论文3.6.2节：两阶段训练策略)
 
@@ -505,20 +513,37 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
         checkpoint_path: path to save best model checkpoint
         lr_kt_pretrain: 预训练阶段学习率 (论文表4.4)
         lr_kt_finetune: 微调阶段学习率 (论文表4.4)
+        warmup_steps: 学习率Warmup步数（0表示不使用Warmup）
+        lr_decay_patience: 学习率衰减patience（None表示不使用衰减）
+        lr_decay_factor: 学习率衰减因子
     """
     # 获取设备
     device = concept_graph.device
     
     best_auc = 0.0
     patience_counter = 0
+    
+    # 初始化学习率调度器（如果启用）
+    scheduler = None
+    if lr_decay_patience is not None:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            model.kt_optimizer, mode='max', factor=lr_decay_factor,
+            patience=lr_decay_patience
+        )
+        print(f"  Learning rate scheduler: ReduceLROnPlateau (patience={lr_decay_patience}, factor={lr_decay_factor})")
+    
+    # 全局步数计数器（用于Warmup）
+    global_step = 0
 
     # Phase 1: Knowledge Tracing Pre-training (Epochs 1-50, 论文3.6.2节)
     print("Phase 1: KT Pre-training (Epochs 1-50)")
     print(f"  Learning rate: {lr_kt_pretrain}")
+    if warmup_steps > 0:
+        print(f"  Warmup steps: {warmup_steps}")
     
     # Set learning rate for pre-training
     for param_group in model.kt_optimizer.param_groups:
-        param_group['lr'] = lr_kt_pretrain
+        param_group['lr'] = lr_kt_pretrain if warmup_steps == 0 else 1e-6  # Warmup起始学习率
     
     for epoch in range(50):
         model.train()
@@ -528,17 +553,34 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
             # 将batch数据移动到正确的设备
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
                     for k, v in batch.items()}
+            
+            # 学习率Warmup
+            if warmup_steps > 0 and global_step < warmup_steps:
+                # 线性Warmup：从1e-6线性增加到lr_kt_pretrain
+                warmup_lr = 1e-6 + (lr_kt_pretrain - 1e-6) * (global_step / warmup_steps)
+                for param_group in model.kt_optimizer.param_groups:
+                    param_group['lr'] = warmup_lr
+            
             losses = model.train_step(batch, concept_graph)
             epoch_losses.append(losses)
+            global_step += 1
 
         # Average losses
         avg_losses = {k: np.mean([loss[k] for loss in epoch_losses]) for k in epoch_losses[0].keys()}
 
         # Validation
         val_metrics = model.evaluate(val_loader, concept_graph)
-
-        print(f"Epoch {epoch+1}: KT Loss: {avg_losses['total_kt_loss']:.4f}, "
-              f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
+        
+        # 学习率调度器更新（基于验证AUC）
+        if scheduler is not None:
+            scheduler.step(val_metrics['auc'])
+            current_lr = model.kt_optimizer.param_groups[0]['lr']
+            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['total_kt_loss']:.4f}, "
+                  f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}, "
+                  f"LR: {current_lr:.6f}")
+        else:
+            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['total_kt_loss']:.4f}, "
+                  f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
 
         # Save best model
         if val_metrics['auc'] > best_auc:
@@ -564,6 +606,13 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
     # Update learning rate for fine-tuning (论文3.6.2节)
     for param_group in model.kt_optimizer.param_groups:
         param_group['lr'] = lr_kt_finetune
+    
+    # 为微调阶段创建新的学习率调度器（如果需要）
+    if lr_decay_patience is not None:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            model.kt_optimizer, mode='max', factor=lr_decay_factor,
+            patience=lr_decay_patience
+        )
 
     for epoch in range(50, n_epochs):
         model.train()
@@ -583,10 +632,19 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
 
         # Validation
         val_metrics = model.evaluate(val_loader, concept_graph)
-
-        print(f"Epoch {epoch+1}: Total Loss: {avg_losses.get('total_kt_loss', 0):.4f}, "
-              f"RL Loss: {avg_losses.get('actor_loss', 0):.4f}, "
-              f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
+        
+        # 学习率调度器更新（基于验证AUC）
+        if scheduler is not None:
+            scheduler.step(val_metrics['auc'])
+            current_lr = model.kt_optimizer.param_groups[0]['lr']
+            print(f"Epoch {epoch+1}: Total Loss: {avg_losses.get('total_kt_loss', 0):.4f}, "
+                  f"RL Loss: {avg_losses.get('actor_loss', 0):.4f}, "
+                  f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}, "
+                  f"LR: {current_lr:.6f}")
+        else:
+            print(f"Epoch {epoch+1}: Total Loss: {avg_losses.get('total_kt_loss', 0):.4f}, "
+                  f"RL Loss: {avg_losses.get('actor_loss', 0):.4f}, "
+                  f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
 
         # Save best model
         if val_metrics['auc'] > best_auc:
