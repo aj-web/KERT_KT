@@ -193,14 +193,10 @@ def convert_to_our_format(input_path, output_path, dataset_name):
         },
         'junyi': {
             'user_id': 'student_id',
-            'problem_id': 'question_id',
-            'skill_id': 'concept_id',
             'correct': 'correct',
-            'order_id': 'timestamp',
             'time_done': 'timestamp',  # Junyi实际列名
-            'student_id': 'student_id',
-            'exercise': 'question_id',  # Junyi实际列名
-            'topic': 'concept_id',
+            'exercise': 'question_id',  # Junyi实际列名：exercise作为题目
+            # 注意：exercise将同时作为concept_id（在特殊处理中实现）
         }
     }
 
@@ -231,34 +227,32 @@ def convert_to_our_format(input_path, output_path, dataset_name):
             print(f"  {i}: {col}")
         raise ValueError(f"缺少必要的列。需要至少4个核心列（student_id, question_id, concept_id, correct）")
 
-    # 特殊处理：Junyi数据集需要从Exercise_table中获取topic
-    if dataset_name == 'junyi' and 'concept_id' not in [found_columns.get(col, '') for col in df.columns]:
-        print(f"\n[INFO] Junyi数据集：从Exercise_table中获取topic信息...")
-        # 查找Exercise_table文件
-        input_dir = os.path.dirname(input_path)
-        exercise_table_path = os.path.join(input_dir, 'junyi_Exercise_table.csv')
-        if os.path.exists(exercise_table_path):
-            try:
-                exercise_table = pd.read_csv(exercise_table_path, encoding='utf-8')
-                print(f"  读取Exercise_table: {len(exercise_table)} 条记录")
-                # 创建exercise -> topic映射
-                exercise_to_topic = dict(zip(exercise_table['name'], exercise_table['topic']))
-                # 如果df中有exercise列，添加topic列
-                if 'exercise' in df.columns:
-                    df['topic'] = df['exercise'].map(exercise_to_topic)
-                    print(f"  成功添加topic列")
-                    # 更新found_columns
-                    found_columns['topic'] = 'concept_id'
-                else:
-                    print(f"  [WARNING] 未找到exercise列，无法添加topic")
-            except Exception as e:
-                print(f"  [WARNING] 读取Exercise_table失败: {e}")
-        else:
-            print(f"  [WARNING] 未找到Exercise_table文件: {exercise_table_path}")
+    # 特殊处理：Junyi数据集 - exercise同时作为question_id和concept_id
+    if dataset_name == 'junyi':
+        if 'exercise' in df.columns and 'exercise' in found_columns:
+            print(f"\n[INFO] Junyi数据集：使用exercise作为concept_id")
+            print(f"  策略：每个exercise既是题目也是知识点（细粒度：721个概念）")
+            # 将exercise列复制一份作为concept_id
+            # 注意：found_columns中已有 'exercise' -> 'question_id'
+            # 我们需要在后续处理中复制这一列
+            found_columns['exercise_concept'] = 'concept_id'  # 标记需要复制
     
     # 提取列
-    df_converted = df[[col for col in found_columns.keys()]].copy()
-    df_converted.columns = [found_columns[col] for col in df_converted.columns]
+    # 特殊处理：Junyi的exercise_concept标记表示需要复制exercise列
+    if 'exercise_concept' in found_columns:
+        # Junyi特殊处理：exercise同时作为question_id和concept_id
+        cols_to_extract = [col for col in found_columns.keys() if col != 'exercise_concept']
+        df_converted = df[cols_to_extract].copy()
+        df_converted.columns = [found_columns[col] for col in cols_to_extract]
+        
+        # 复制exercise列作为concept_id（如果还没有concept_id列）
+        if 'concept_id' not in df_converted.columns and 'question_id' in df_converted.columns:
+            df_converted['concept_id'] = df_converted['question_id'].copy()
+            print(f"  已将question_id复制为concept_id")
+    else:
+        # 常规处理
+        df_converted = df[[col for col in found_columns.keys()]].copy()
+        df_converted.columns = [found_columns[col] for col in df_converted.columns]
 
     # 数据清洗
     print(f"\n数据清洗:")
