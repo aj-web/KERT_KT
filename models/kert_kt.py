@@ -155,7 +155,7 @@ class KERKT(nn.Module):
         self.val_loader = None
         self.eval_frequency = 10  # Evaluate every N batches
         self.batch_count = 0
-        self.concept_embeddings_update_frequency = 10  # 每N个batch更新一次concept_embeddings
+        self.concept_embeddings_update_frequency = 50  # 优化：每N个batch更新一次concept_embeddings（10 → 50，减少计算）
         self._concept_graph_hash = None  # 用于检测concept_graph是否变化
 
     def forward(self, batch, concept_graph):

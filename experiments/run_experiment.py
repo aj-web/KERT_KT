@@ -338,10 +338,10 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,
             'lr_kt_finetune': 0.0005,
-            'batch_size': 32,
+            'batch_size': 64,      # 优化：32 → 64（提升并行度）
             'dropout': 0.2,
-            'max_seq_len': 200,
-            'n_epochs': 100,
+            'max_seq_len': 100,    # 优化：200 → 100（关键：减少注意力计算量）
+            'n_epochs': 50,        # 优化：100 → 50（先验证效果）
             'patience': 10
         },
         'junyi': {
