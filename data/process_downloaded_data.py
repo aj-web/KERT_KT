@@ -8,34 +8,69 @@ import numpy as np
 import pickle
 
 
-def build_concept_graph(df, n_concepts):
+def build_concept_graph(df, n_concepts, method='qmatrix'):
     """
     构建概念图（知识点关系图）
+    
+    论文3.3.1节：使用Q-matrix构建知识点图
+    边权重 = 知识点共现次数：w_{ij} = Σ_q I(k_i ∈ K_q ∧ k_j ∈ K_q)
 
     Args:
         df: 数据DataFrame，包含question_id和concept_id列
         n_concepts: 知识点总数
+        method: 构建方法
+            - 'qmatrix': 基于Q-matrix（题目-知识点关联），论文方法
+            - 'sequence': 基于学习序列中的相邻关系（原方法）
 
     Returns:
         concept_graph: np.array, shape=(n_concepts, n_concepts)
     """
-    print("  构建概念图...")
+    print(f"  构建概念图（方法: {method}）...")
 
     # 初始化邻接矩阵
     concept_graph = np.zeros((n_concepts, n_concepts), dtype=np.float32)
 
-    # 统计概念共现关系
-    # 如果两个概念在同一个学生的学习序列中相邻出现，则它们有关系
-    for student_id in df['student_id'].unique():
-        student_data = df[df['student_id'] == student_id].sort_values('timestamp')
-        concepts = student_data['concept_id'].values
+    if method == 'qmatrix':
+        # 论文方法：基于Q-matrix（题目-知识点关联）
+        # 如果两个知识点在同一题目中被考查，则在它们之间建立边
+        print("    使用Q-matrix方法（论文3.3.1节）")
+        
+        # 获取每个题目考查的知识点集合
+        question_concepts = df.groupby('question_id')['concept_id'].apply(set).to_dict()
+        
+        # 统计知识点共现次数
+        for q_id, concept_set in question_concepts.items():
+            concepts = list(concept_set)
+            # 对于题目中的每对知识点，增加共现次数
+            for i in range(len(concepts)):
+                for j in range(i+1, len(concepts)):
+                    c1, c2 = concepts[i], concepts[j]
+                    concept_graph[c1, c2] += 1
+                    concept_graph[c2, c1] += 1  # 无向图
+        
+        print(f"    共现关系来源: {len(question_concepts)} 个题目")
+    
+    elif method == 'sequence':
+        # 原方法：基于学习序列中的相邻关系
+        print("    使用学习序列方法（原实现）")
+        
+        # 统计概念共现关系
+        # 如果两个概念在同一个学生的学习序列中相邻出现，则它们有关系
+        for student_id in df['student_id'].unique():
+            student_data = df[df['student_id'] == student_id].sort_values('timestamp')
+            concepts = student_data['concept_id'].values
 
-        # 统计相邻概念
-        for i in range(len(concepts) - 1):
-            c1, c2 = concepts[i], concepts[i+1]
-            if c1 != c2:  # 不同的概念
-                concept_graph[c1, c2] += 1
-                concept_graph[c2, c1] += 1  # 无向图
+            # 统计相邻概念
+            for i in range(len(concepts) - 1):
+                c1, c2 = concepts[i], concepts[i+1]
+                if c1 != c2:  # 不同的概念
+                    concept_graph[c1, c2] += 1
+                    concept_graph[c2, c1] += 1  # 无向图
+        
+        print(f"    共现关系来源: {df['student_id'].nunique()} 个学生的学习序列")
+    
+    else:
+        raise ValueError(f"未知的构建方法: {method}")
 
     # 归一化（按行）
     row_sums = concept_graph.sum(axis=1, keepdims=True)
@@ -96,13 +131,14 @@ def split_dataset(df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2):
     return train_df, val_df, test_df
 
 
-def process_dataset(csv_path, dataset_name):
+def process_dataset(csv_path, dataset_name, graph_method='qmatrix'):
     """
     处理单个数据集
 
     Args:
         csv_path: CSV文件路径
         dataset_name: 数据集名称（用于显示）
+        graph_method: 概念图构建方法（'qmatrix'或'sequence'）
 
     Returns:
         dataset_info: 包含所有必要信息的字典
@@ -136,11 +172,68 @@ def process_dataset(csv_path, dataset_name):
     print(f"  答题记录数: {len(df):,}")
     print(f"  平均正确率: {df['correct'].mean():.4f}")
 
+    # 数据清洗（论文4.1节）
+    print("\n数据清洗:")
+    original_len = len(df)
+    
+    # 1. 移除交互记录少于5次的学生
+    print("  (1) 移除交互记录少于5次的学生...")
+    student_counts = df['student_id'].value_counts()
+    valid_students = student_counts[student_counts >= 5].index
+    df = df[df['student_id'].isin(valid_students)]
+    print(f"      移除 {original_len - len(df):,} 条记录")
+    
+    # 2. 删除答题时间异常的记录（论文4.1节：<1秒或>1小时）
+    print("  (2) 删除答题时间异常的记录（<1秒或>1小时）...")
+    # 检查是否有时间列（duration, time_taken, time_done等）
+    time_cols = ['duration', 'time_taken', 'response_time', 'time_done']
+    time_col = None
+    for col in time_cols:
+        if col in df.columns:
+            time_col = col
+            break
+    
+    if time_col is not None:
+        before_len = len(df)
+        # 假设时间单位是秒，过滤<1秒或>3600秒（1小时）的记录
+        if df[time_col].dtype in ['int64', 'float64']:
+            df = df[(df[time_col] >= 1) & (df[time_col] <= 3600)]
+            print(f"      使用列 '{time_col}'，移除 {before_len - len(df):,} 条异常记录")
+        else:
+            print(f"      警告：时间列 '{time_col}' 类型不是数值，跳过时间过滤")
+    else:
+        print(f"      警告：未找到时间列（尝试过：{time_cols}），跳过时间过滤")
+    
+    print(f"  清洗后剩余记录数: {len(df):,}")
+    
+    # 3. 重新编码ID（确保ID从0开始连续）
+    print("  (3) 重新编码ID（确保连续性）...")
+    from sklearn.preprocessing import LabelEncoder
+    
+    student_encoder = LabelEncoder()
+    question_encoder = LabelEncoder()
+    concept_encoder = LabelEncoder()
+    
+    df['student_id'] = student_encoder.fit_transform(df['student_id'])
+    df['question_id'] = question_encoder.fit_transform(df['question_id'])
+    df['concept_id'] = concept_encoder.fit_transform(df['concept_id'])
+    
+    # 重新统计（清洗后）
+    n_students = df['student_id'].nunique()
+    n_questions = df['question_id'].nunique()
+    n_concepts = df['concept_id'].nunique()
+    print(f"\n清洗后统计:")
+    print(f"  学生数: {n_students:,}")
+    print(f"  题目数: {n_questions:,}")
+    print(f"  知识点数: {n_concepts:,}")
+    print(f"  答题记录数: {len(df):,}")
+    print(f"  平均正确率: {df['correct'].mean():.4f}")
+
     # 划分数据集
     train_df, val_df, test_df = split_dataset(df)
 
-    # 构建概念图
-    concept_graph = build_concept_graph(df, n_concepts)
+    # 构建概念图（论文3.3.1节：使用Q-matrix方法）
+    concept_graph = build_concept_graph(df, n_concepts, method=graph_method)
 
     # 构建Q矩阵（question -> concept映射）
     print("  构建Q矩阵...")
@@ -184,6 +277,9 @@ def main():
                        help='数据目录')
     parser.add_argument('--output', type=str, default='./data/processed_datasets.pkl',
                        help='输出PKL文件路径')
+    parser.add_argument('--graph-method', type=str, default='qmatrix',
+                       choices=['qmatrix', 'sequence'],
+                       help='概念图构建方法：qmatrix（论文方法，基于题目-知识点关联）或sequence（基于学习序列）')
 
     args = parser.parse_args()
 
@@ -206,7 +302,7 @@ def main():
             continue
 
         try:
-            dataset_info = process_dataset(csv_path, dataset_name)
+            dataset_info = process_dataset(csv_path, dataset_name, graph_method=args.graph_method)
             all_datasets[dataset_name] = dataset_info
         except Exception as e:
             print(f"\n[ERROR] 处理 {dataset_name} 失败: {e}")
