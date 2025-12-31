@@ -305,10 +305,10 @@ def get_dataset_config(dataset_name):
             'lambda_rl': 0.1,      # λ_RL
             
             # Training parameters
-            'lr_kt_pretrain': 0.0005,   # 优化：降低预训练学习率，减缓过拟合
+            'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
             'lr_kt_finetune': 0.00025,  # 优化：相应降低微调学习率
             'batch_size': 32,
-            'dropout': 0.4,            # 优化：进一步增大dropout，防止过拟合
+            'dropout': 0.3,            # 优化：进一步增大dropout，防止过拟合
             'max_seq_len': 200,
             'n_epochs': 100,
             'patience': 7,
