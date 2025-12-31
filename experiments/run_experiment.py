@@ -306,15 +306,15 @@ def get_dataset_config(dataset_name):
             
             # Training parameters
             'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
-            'lr_kt_finetune': 0.00025,  # 优化：相应降低微调学习率
-            'batch_size': 32,
+            'lr_kt_finetune': 0.0005,  # 优化：相应降低微调学习率
+            'batch_size': 48,          # 平衡：适度增加batch size（32→48），加速约1.5倍
             'dropout': 0.3,            # 优化：进一步增大dropout，防止过拟合
-            'max_seq_len': 200,
-            'n_epochs': 100,
-            'patience': 7,
-            'l2_lambda': 1e-4,         # 保持：增强L2正则化
-            'warmup_steps': 4000,        # 新增：学习率Warmup步数
-            'lr_decay_patience': 3,    # 新增：学习率衰减patience
+            'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
+            'n_epochs': 30,            # 优化：减少总轮数（模型通常在前10个epoch收敛）
+            'patience': 5,             # 关键：更激进的Early Stopping，在峰值后尽早停止
+            'l2_lambda': 1e-5,         # 降低：过强的L2可能限制模型表达能力
+            'warmup_steps': 1800,      # 降低：约0.5个epoch完成Warmup（1800/3602≈0.5）
+            'lr_decay_patience': 5,    # 增加：更保守的学习率衰减
             'lr_decay_factor': 0.5     # 新增：学习率衰减因子
         },
         'assist17': {
@@ -338,11 +338,15 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,
             'lr_kt_finetune': 0.0005,
-            'batch_size': 64,      # 优化：32 → 64（提升并行度）
-            'dropout': 0.2,
-            'max_seq_len': 100,    # 优化：200 → 100（关键：减少注意力计算量）
-            'n_epochs': 50,        # 优化：100 → 50（先验证效果）
-            'patience': 10
+            'batch_size': 64,      # 平衡：64适中（原96太大导致泛化差）
+            'dropout': 0.3,        # 增强：0.2→0.3，加强正则化，减轻过拟合
+            'max_seq_len': 150,    # 平衡：100→150，保留更多序列信息（原200太慢）
+            'n_epochs': 30,        # 优化：50→30（Early Stop通常在15触发）
+            'patience': 5,         # 关键：10→5，更激进的Early Stopping
+            'l2_lambda': 1e-5,     # 新增：L2正则化
+            'warmup_steps': 2000,  # 新增：学习率Warmup
+            'lr_decay_patience': 5,
+            'lr_decay_factor': 0.5
         },
         'junyi': {
             # Model hyperparameters (论文表4.4)

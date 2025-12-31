@@ -251,8 +251,8 @@ def convert_to_our_format(input_path, output_path, dataset_name):
             print(f"  已将question_id复制为concept_id")
     else:
         # 常规处理
-        df_converted = df[[col for col in found_columns.keys()]].copy()
-        df_converted.columns = [found_columns[col] for col in df_converted.columns]
+    df_converted = df[[col for col in found_columns.keys()]].copy()
+    df_converted.columns = [found_columns[col] for col in df_converted.columns]
 
     # 数据清洗
     print(f"\n数据清洗:")
