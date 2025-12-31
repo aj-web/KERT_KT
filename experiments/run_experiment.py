@@ -344,9 +344,6 @@ def get_dataset_config(dataset_name):
             'n_epochs': 30,        # 优化：50→30（Early Stop通常在15触发）
             'patience': 5,         # 关键：10→5，更激进的Early Stopping
             'l2_lambda': 1e-5,     # 新增：L2正则化
-            'warmup_steps': 2000,  # 新增：学习率Warmup
-            'lr_decay_patience': 5,
-            'lr_decay_factor': 0.5
         },
         'junyi': {
             # Model hyperparameters (论文表4.4)
