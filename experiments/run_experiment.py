@@ -338,12 +338,12 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,
             'lr_kt_finetune': 0.0005,
-            'batch_size': 64,      # 平衡：64适中（原96太大导致泛化差）
-            'dropout': 0.3,        # 增强：0.2→0.3，加强正则化，减轻过拟合
-            'max_seq_len': 150,    # 平衡：100→150，保留更多序列信息（原200太慢）
-            'n_epochs': 30,        # 优化：50→30（Early Stop通常在15触发）
-            'patience': 5,         # 关键：10→5，更激进的Early Stopping
-            'l2_lambda': 1e-5,     # 新增：L2正则化
+            'batch_size': 64,      # 保持64（平衡泛化与速度）
+            'dropout': 0.25,       # 关键：0.3→0.25，降低正则化，提升峰值性能
+            'max_seq_len': 200,    # 关键：150→200，恢复完整序列信息（36%→48%）
+            'n_epochs': 30,        # 保持30
+            'patience': 7,         # 5→7，给模型更多机会找到最优点
+            'l2_lambda': 5e-6,     # 1e-5→5e-6，降低L2强度
         },
         'junyi': {
             # Model hyperparameters (论文表4.4)
