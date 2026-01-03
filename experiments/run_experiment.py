@@ -307,8 +307,8 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
             'lr_kt_finetune': 0.0005,  # 优化：相应降低微调学习率
-            'batch_size': 48,          # 平衡：适度增加batch size（32→48），加速约1.5倍
-            'dropout': 0.3,            # 优化：进一步增大dropout，防止过拟合
+            'batch_size': 32,          # 平衡：适度增加batch size（32→48），加速约1.5倍
+            'dropout': 0.28,            # 优化：进一步增大dropout，防止过拟合
             'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
             'n_epochs': 30,            # 优化：减少总轮数（模型通常在前10个epoch收敛）
             'patience': 5,             # 关键：更激进的Early Stopping，在峰值后尽早停止
@@ -339,11 +339,11 @@ def get_dataset_config(dataset_name):
             'lr_kt_pretrain': 0.001,
             'lr_kt_finetune': 0.0005,
             'batch_size': 64,      # 保持64（平衡泛化与速度）
-            'dropout': 0.25,       # 关键：0.3→0.25，降低正则化，提升峰值性能
-            'max_seq_len': 200,    # 关键：150→200，恢复完整序列信息（36%→48%）
+            'dropout': 0.28,       # 关键：0.3→0.28，微调正则化强度
+            'max_seq_len': 150,    # 关键：回归150（最优平衡点）
             'n_epochs': 30,        # 保持30
             'patience': 7,         # 5→7，给模型更多机会找到最优点
-            'l2_lambda': 5e-6,     # 1e-5→5e-6，降低L2强度
+            'l2_lambda': 1e-5,     # 恢复1e-5，增强正则化
         },
         'junyi': {
             # Model hyperparameters (论文表4.4)
