@@ -8,7 +8,58 @@ pip install -r requirements.txt
 ```
 
 ### 2. 准备数据
-数据会自动下载或生成。如果数据不存在，脚本会自动创建合成数据用于测试。
+
+本项目使用 **EduData** 下载和处理真实数据集。数据准备分为两个步骤：
+
+#### 步骤1：下载数据
+
+使用EduData下载数据集（支持assist09、assist17、junyi）：
+
+```bash
+# 下载ASSIST09数据集
+python data/download_with_edudata.py --dataset assist09
+
+# 下载ASSIST17数据集
+python data/download_with_edudata.py --dataset assist17
+
+# 下载Junyi数据集
+python data/download_with_edudata.py --dataset junyi
+
+# 如果数据已下载，可以跳过下载步骤
+python data/download_with_edudata.py --dataset assist09 --skip-download
+```
+
+**说明**：
+- 数据会下载到当前目录下的相应文件夹
+- 下载的数据会自动转换为项目需要的格式（CSV）
+- 转换后的数据保存在 `./data/{dataset_name}.csv`
+
+#### 步骤2：预处理数据
+
+将下载的CSV数据预处理为实验所需的pkl格式：
+
+```bash
+# 处理单个数据集
+python data/process_downloaded_data.py --datasets assist09
+
+# 处理多个数据集
+python data/process_downloaded_data.py --datasets assist09 assist17 junyi
+
+# 指定输出路径
+python data/process_downloaded_data.py --datasets assist09 --output ./data/processed_datasets.pkl
+```
+
+**说明**：
+- 预处理包括：数据划分（70%训练，10%验证，20%测试）、构建concept_graph、构建Q-matrix
+- 处理后的数据保存在 `./data/processed_datasets.pkl`
+- 数据划分采用**严格时序划分**（论文4.2.2节要求）
+
+#### 数据准备完成检查
+
+```bash
+# 检查pkl文件是否存在
+python -c "import os; print('数据文件存在:', os.path.exists('./data/processed_datasets.pkl'))"
+```
 
 ## 二、运行基线对比实验（论文4.3节）
 
@@ -88,6 +139,18 @@ python experiments/run_experiment.py --dataset assist09 --n_runs 5
 
 ## 四、完整实验流程
 
+### 步骤0：数据准备（首次运行必须）
+
+```bash
+# 1. 下载数据
+python data/download_with_edudata.py --dataset assist09
+python data/download_with_edudata.py --dataset assist17
+python data/download_with_edudata.py --dataset junyi
+
+# 2. 预处理数据
+python data/process_downloaded_data.py --datasets assist09 assist17 junyi
+```
+
 ### 步骤1：运行基线模型实验
 
 ```bash
@@ -157,7 +220,11 @@ python experiments/run_experiment.py \
 如果想快速测试代码是否正常工作：
 
 ```bash
-# 快速测试：只运行DKT，1次运行，20轮训练
+# 1. 快速数据准备（只下载assist09）
+python data/download_with_edudata.py --dataset assist09
+python data/process_downloaded_data.py --datasets assist09
+
+# 2. 快速测试：只运行DKT，1次运行，20轮训练
 python experiments/run_baseline_experiments.py \
     --datasets assist09 \
     --models DKT \
@@ -166,6 +233,18 @@ python experiments/run_baseline_experiments.py \
 ```
 
 ## 八、常见问题
+
+### Q: 数据下载失败怎么办？
+A: 
+- 检查网络连接
+- 确认EduData已正确安装：`pip install EduData`
+- 可以手动从EduData官网下载数据
+
+### Q: 数据预处理失败怎么办？
+A:
+- 确认CSV文件已正确下载到 `./data/{dataset_name}.csv`
+- 检查CSV文件格式是否正确（包含student_id, question_id, concept_id, correct, timestamp列）
+- 查看错误信息，可能是数据格式问题
 
 ### Q: 内存不足怎么办？
 A: 可以减少batch_size或使用更小的数据集。
@@ -178,4 +257,12 @@ A: 使用 `--models` 参数指定，如 `--models DKT SAKT`。
 
 ### Q: 结果保存在哪里？
 A: 保存在 `results/` 目录下，文件名由 `--save_results` 参数指定。
+
+### Q: 数据划分方式是什么？
+A: 采用**严格时序划分**（论文4.2.2节）：
+- 对每个学生，按时间顺序划分
+- 前70% → 训练集
+- 中间10% → 验证集
+- 最后20% → 测试集
+- 确保不利用"未来"信息
 

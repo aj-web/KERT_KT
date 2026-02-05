@@ -213,8 +213,8 @@ class ActorCritic(nn.Module):
         # Concatenate all state components
         state_components = [
             lstm_hidden,  # Knowledge state
-            torch.tensor(thresholds, device=lstm_hidden.device).unsqueeze(0).expand(lstm_hidden.size(0), -1),  # Current thresholds
-            torch.tensor(region_stats, device=lstm_hidden.device).unsqueeze(0).expand(lstm_hidden.size(0), -1)  # Region statistics
+            torch.tensor(thresholds, dtype=torch.float32, device=lstm_hidden.device).unsqueeze(0).expand(lstm_hidden.size(0), -1),  # Current thresholds
+            torch.tensor(region_stats, dtype=torch.float32, device=lstm_hidden.device).unsqueeze(0).expand(lstm_hidden.size(0), -1)  # Region statistics
         ]
 
         state = torch.cat(state_components, dim=-1)

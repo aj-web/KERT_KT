@@ -157,7 +157,8 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                 attention_mask = batch.get('attention_mask', None)
                 if model_name in ['DKT', 'DKVMN', 'SAKT']:
                     if model_name == 'DKT' and attention_mask is not None:
-                        predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask)
+                        # 修复：将attention_mask移动到正确的设备
+                        predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask.to(device))
                     else:
                         predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
                 elif model_name in ['AKT', 'GKT']:
@@ -191,12 +192,13 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                     attention_mask = batch.get('attention_mask', None)
                     if model_name in ['DKT', 'DKVMN', 'SAKT']:
                         if model_name == 'DKT' and attention_mask is not None:
-                            predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask)
+                            # 修复：将attention_mask移动到正确的设备
+                            predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask.to(device))
                         else:
                             predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
                     elif model_name in ['AKT', 'GKT']:
                         predictions = model.predict_single_concept(question_seq, concept_seq, answer_seq, target_concept)
-                    
+
                     val_predictions.extend(predictions.cpu().numpy())
                     val_labels.extend(labels.cpu().numpy())
             
@@ -229,12 +231,17 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                 answer_seq = batch['answer_seq'].to(device)
                 target_concept = batch['target_concept'].to(device)
                 labels = batch['labels'].to(device)
-                
+
+                # 修复Bug：测试阶段也要传递attention_mask（之前缺失这个！）
+                attention_mask = batch.get('attention_mask', None)
                 if model_name in ['DKT', 'DKVMN', 'SAKT']:
-                    predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
+                    if model_name == 'DKT' and attention_mask is not None:
+                        predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask.to(device))
+                    else:
+                        predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
                 elif model_name in ['AKT', 'GKT']:
                     predictions = model.predict_single_concept(question_seq, concept_seq, answer_seq, target_concept)
-                
+
                 test_predictions.extend(predictions.cpu().numpy())
                 test_labels.extend(labels.cpu().numpy())
         

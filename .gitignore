@@ -8,4 +8,9 @@ out
 gen
 /张慧玲-毕业论文-11.22.txt
 /data/*.pkl
+*.zip
+*.csv
+*.pyc
+/junyi/*
+
 *.pyc
