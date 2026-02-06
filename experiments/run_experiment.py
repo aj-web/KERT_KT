@@ -326,7 +326,7 @@ def get_dataset_config(dataset_name):
             'batch_size': 64,          # 速度优化：增大batch size（32→64），加速约2倍
             'dropout': 0.28,            # 优化：进一步增大dropout，防止过拟合
             'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
-            'n_epochs': 30,            # 优化：减少总轮数（模型通常在前10个epoch收敛）
+            'n_epochs': 100,           # 论文配置：Phase1(1-50) + Phase2(51-100) = 100 epochs
             'patience': 8,             # 修正：增加patience，给模型更多恢复时间（避免过早停止）
             'l2_lambda': 1e-5,         # 降低：过强的L2可能限制模型表达能力
             'warmup_steps': 1800,      # 降低：约0.5个epoch完成Warmup（1800/3602≈0.5）
@@ -357,7 +357,7 @@ def get_dataset_config(dataset_name):
             'batch_size': 128,     # EdNet数据量大，用更大batch size
             'dropout': 0.3,        # 大规模数据，适度dropout
             'max_seq_len': 150,    # 平衡序列长度和计算效率
-            'n_epochs': 30,        # 大数据集收敛快
+            'n_epochs': 100,       # 论文配置：Phase1(1-50) + Phase2(51-100) = 100 epochs
             'patience': 8,         # Early stopping（增加patience）
             'l2_lambda': 1e-5,     # L2正则化
             'warmup_steps': 2000,  # Warmup步数
