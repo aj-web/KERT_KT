@@ -152,6 +152,7 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
             embed_dim=config['embed_dim'],
             hidden_dim=config['hidden_dim'],
             n_layers=config['n_layers'],
+            lstm_layers=config['n_layers'],  # LSTM层数与图传播层数一致
             alpha=config['alpha'],
             beta=config['beta'],
             lambda_decay=config['lambda_decay'],
@@ -326,7 +327,7 @@ def get_dataset_config(dataset_name):
             'dropout': 0.28,            # 优化：进一步增大dropout，防止过拟合
             'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
             'n_epochs': 30,            # 优化：减少总轮数（模型通常在前10个epoch收敛）
-            'patience': 5,             # 关键：更激进的Early Stopping，在峰值后尽早停止
+            'patience': 8,             # 修正：增加patience，给模型更多恢复时间（避免过早停止）
             'l2_lambda': 1e-5,         # 降低：过强的L2可能限制模型表达能力
             'warmup_steps': 1800,      # 降低：约0.5个epoch完成Warmup（1800/3602≈0.5）
             'lr_decay_patience': 5,    # 增加：更保守的学习率衰减
@@ -357,7 +358,7 @@ def get_dataset_config(dataset_name):
             'dropout': 0.3,        # 大规模数据，适度dropout
             'max_seq_len': 150,    # 平衡序列长度和计算效率
             'n_epochs': 30,        # 大数据集收敛快
-            'patience': 5,         # Early stopping
+            'patience': 8,         # Early stopping（增加patience）
             'l2_lambda': 1e-5,     # L2正则化
             'warmup_steps': 2000,  # Warmup步数
             'lr_decay_patience': 5,

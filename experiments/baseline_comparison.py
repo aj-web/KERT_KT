@@ -201,8 +201,8 @@ def train_kert_kt_model(dataset_name, n_epochs=20):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collator.collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collator.collate_fn)
 
-    # Initialize KER-KT model
-    model = KERKT(
+    # Initialize KRD-KT model
+    model = KRDKT(
         n_questions=dataset_info['n_questions'],
         n_concepts=dataset_info['n_concepts'],
         embed_dim=64,  # Smaller for quick testing

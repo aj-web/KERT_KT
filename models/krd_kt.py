@@ -88,11 +88,11 @@ class KRDKT(nn.Module):
     """
 
     def __init__(self, n_questions, n_concepts, embed_dim=128, hidden_dim=256,
-                 n_layers=2, alpha=0.7, beta=0.3, lambda_decay=0.1,
+                 n_layers=2, lstm_layers=2, alpha=0.7, beta=0.3, lambda_decay=0.1,
                  gamma=0.99, lr_kt=1e-3, lr_rl=1e-4, lambda_rl=0.1, 
                  l2_lambda=1e-5, dropout=0.2):
         """
-        Initialize KER-KT model
+        Initialize KRD-KT model
 
         Args:
             n_questions: number of questions
@@ -100,6 +100,7 @@ class KRDKT(nn.Module):
             embed_dim: embedding dimension
             hidden_dim: LSTM hidden dimension
             n_layers: graph propagation layers
+            lstm_layers: number of LSTM layers
             alpha, beta: initial triple decision thresholds
             lambda_decay: negative region decay factor
             gamma: RL discount factor
@@ -116,6 +117,7 @@ class KRDKT(nn.Module):
         self.embed_dim = embed_dim
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
+        self.lstm_layers = lstm_layers
         self.alpha = alpha
         self.beta = beta
 
@@ -146,7 +148,8 @@ class KRDKT(nn.Module):
 
         # KT预测器模块
         self.kt_predictor = KTPredictor(
-            n_questions, n_concepts, embed_dim, hidden_dim, self.concept_embeddings, dropout=dropout
+            n_questions, n_concepts, embed_dim, hidden_dim, self.concept_embeddings, 
+            lstm_layers=lstm_layers, dropout=dropout
         )
 
         # Actor-Critic模块（阈值优化）
@@ -657,21 +660,28 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
             patience_counter += 1
 
         if patience_counter >= patience:
-            print("Early stopping triggered")
+            print(f"Phase 1 early stopping triggered (best AUC: {best_auc:.4f})")
             break
 
     # Phase 2: RL Fine-tuning (Epochs 51-100, 论文3.6.2节)
-    print("\nPhase 2: RL Fine-tuning (Epochs 51-100)")
+    print("\n" + "="*50)
+    print("Phase 2: RL Fine-tuning (Epochs 51-100)")
+    print("="*50)
     print(f"  KT Learning rate: {lr_kt_finetune} (降低)")
     print(f"  RL Learning rate: {model.actor_critic.actor_optimizer.param_groups[0]['lr']}")
+    print(f"  Loading best Phase 1 model (AUC: {best_auc:.4f})")
     
+    model.load_model(checkpoint_path)  # Load best KT model
     model.enable_rl_training()
     model.set_val_loader(val_loader)  # Set validation loader for reward calculation
-    model.load_model(checkpoint_path)  # Load best KT model
     
     # Update learning rate for fine-tuning (论文3.6.2节)
     for param_group in model.kt_optimizer.param_groups:
         param_group['lr'] = lr_kt_finetune
+    
+    # 重置patience计数器（Phase 2独立早停）
+    patience_counter = 0
+    phase2_best_auc = best_auc
     
     # 为微调阶段创建新的学习率调度器（如果需要）
     if lr_decay_patience is not None:
@@ -718,19 +728,23 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
                   f"Critic Loss: {avg_losses.get('critic_loss', 0):.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
 
-        # Save best model
-        if val_metrics['auc'] > best_auc:
-            best_auc = val_metrics['auc']
+        # Save best model (Phase 2)
+        if val_metrics['auc'] > phase2_best_auc:
+            phase2_best_auc = val_metrics['auc']
+            best_auc = phase2_best_auc  # 更新全局最佳
             patience_counter = 0
             model.save_model(checkpoint_path)
+            print(f"  -> New best model saved (AUC: {phase2_best_auc:.4f})")
         else:
             patience_counter += 1
 
         if patience_counter >= patience:
-            print("Early stopping triggered")
+            print(f"Phase 2 early stopping triggered (best AUC: {phase2_best_auc:.4f})")
             break
 
+    print("\n" + "="*50)
     print(f"Training completed. Best validation AUC: {best_auc:.4f}")
+    print("="*50)
 
 
 if __name__ == "__main__":

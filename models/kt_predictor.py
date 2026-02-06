@@ -16,7 +16,7 @@ class KTPredictor(nn.Module):
     """
 
     def __init__(self, n_questions, n_concepts, embed_dim, hidden_dim,
-                 concept_graph_embed, dropout=0.2):
+                 concept_graph_embed, lstm_layers=2, dropout=0.2):
         """
         Initialize KT Predictor
 
@@ -26,6 +26,7 @@ class KTPredictor(nn.Module):
             embed_dim: embedding dimension
             hidden_dim: LSTM hidden dimension
             concept_graph_embed: enhanced concept embeddings from graph module
+            lstm_layers: number of LSTM layers
             dropout: dropout rate
         """
         super(KTPredictor, self).__init__()
@@ -34,6 +35,7 @@ class KTPredictor(nn.Module):
         self.n_concepts = n_concepts
         self.embed_dim = embed_dim
         self.hidden_dim = hidden_dim
+        self.lstm_layers = lstm_layers
 
         # Embedding layers
         self.question_embed = nn.Embedding(n_questions, embed_dim)
@@ -47,9 +49,9 @@ class KTPredictor(nn.Module):
         self.lstm = nn.LSTM(
             input_size=embed_dim * 3,  # question + concept + answer
             hidden_size=hidden_dim,
-            num_layers=1,
+            num_layers=lstm_layers,
             batch_first=True,
-            dropout=dropout if dropout > 0 else 0
+            dropout=dropout if lstm_layers > 1 and dropout > 0 else 0
         )
 
         # Attention mechanism
