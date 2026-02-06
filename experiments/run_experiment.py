@@ -19,7 +19,7 @@ from datetime import datetime
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from models.kert_kt import KERKT, KTSequenceDataset, train_kert_kt
+from models.krd_kt import KRDKT, KTSequenceDataset, train_krd_kt
 from models.kt_predictor import DataCollator
 
 
@@ -131,7 +131,7 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
         )
 
         # Initialize model
-        model = KERKT(
+        model = KRDKT(
             n_questions=dataset_info['n_questions'],
             n_concepts=dataset_info['n_concepts'],
             embed_dim=config['embed_dim'],
@@ -158,11 +158,11 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
 
         # Train model
         print("\nStarting training...")
-        best_model_path = os.path.join(checkpoint_dir, f'kert_kt_best_run{run_idx+1}.pt')
+        best_model_path = os.path.join(checkpoint_dir, f'krd_kt_best_run{run_idx+1}.pt')
         
         # Update model learning rate for fine-tuning stage
         # Note: This should be handled in train_kert_kt function
-        train_kert_kt(
+        train_krd_kt(
             model, train_loader, val_loader, concept_graph,
             n_epochs=config['n_epochs'], patience=config['patience'],
             checkpoint_path=best_model_path,
@@ -233,7 +233,7 @@ def run_all_experiments(n_runs=5):
     Args:
         n_runs: number of runs per dataset (论文要求5次)
     """
-    datasets = ['assist09', 'assist17', 'junyi']
+    datasets = ['assist09', 'ednet', 'junyi']
     all_results = []
 
     for dataset_name in datasets:
@@ -317,10 +317,10 @@ def get_dataset_config(dataset_name):
             'lr_decay_patience': 5,    # 增加：更保守的学习率衰减
             'lr_decay_factor': 0.5     # 新增：学习率衰减因子
         },
-        'assist17': {
-            # Model hyperparameters (论文表4.4)
+        'ednet': {
+            # Model hyperparameters (论文表4.4 - EdNet大规模数据集)
             'embed_dim': 128,      # d_k, d_q
-            'hidden_dim': 256,    # d_h
+            'hidden_dim': 256,     # d_h
             'n_layers': 2,         # L
             
             # Triple decision parameters
@@ -338,12 +338,15 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,
             'lr_kt_finetune': 0.0005,
-            'batch_size': 64,      # 保持64（平衡泛化与速度）
-            'dropout': 0.28,       # 关键：0.3→0.28，微调正则化强度
-            'max_seq_len': 150,    # 关键：回归150（最优平衡点）
-            'n_epochs': 30,        # 保持30
-            'patience': 7,         # 5→7，给模型更多机会找到最优点
-            'l2_lambda': 1e-5,     # 恢复1e-5，增强正则化
+            'batch_size': 128,     # EdNet数据量大，用更大batch size
+            'dropout': 0.3,        # 大规模数据，适度dropout
+            'max_seq_len': 150,    # 平衡序列长度和计算效率
+            'n_epochs': 30,        # 大数据集收敛快
+            'patience': 5,         # Early stopping
+            'l2_lambda': 1e-5,     # L2正则化
+            'warmup_steps': 2000,  # Warmup步数
+            'lr_decay_patience': 5,
+            'lr_decay_factor': 0.5
         },
         'junyi': {
             # Model hyperparameters (论文表4.4)
@@ -388,7 +391,7 @@ def get_default_config():
 
 def main():
     parser = argparse.ArgumentParser(description='Run KER-KT experiments (论文第4章)')
-    parser.add_argument('--dataset', type=str, choices=['assist09', 'assist17', 'junyi', 'all'],
+    parser.add_argument('--dataset', type=str, choices=['assist09', 'ednet', 'junyi', 'all'],
                        default='all', help='Dataset to run experiment on')
     parser.add_argument('--n_runs', type=int, default=5, 
                        help='Number of runs (论文4.3.2节要求5次)')

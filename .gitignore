@@ -12,5 +12,6 @@ gen
 *.csv
 *.pyc
 /junyi/*
+/data/raw/*
 
 *.pyc

@@ -22,7 +22,7 @@ from tqdm import tqdm
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from models.kert_kt import KERKT, KTSequenceDataset, train_kert_kt
+from models.krd_kt import KRDKT, KTSequenceDataset, train_krd_kt
 from models.kt_predictor import DataCollator
 from baselines.dkt import DKT, DKTLoss
 from baselines.dkvmn import DKVMN, DKVMNLoss

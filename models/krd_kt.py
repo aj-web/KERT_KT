@@ -1,5 +1,5 @@
 """
-KER-KT: Knowledge Enhanced Representation-driven Knowledge Tracing
+KRD-KT: Knowledge point Representation-Driven Knowledge Tracing
 Complete implementation integrating all modules
 """
 
@@ -14,9 +14,12 @@ import pickle
 import os
 from tqdm import tqdm
 
-from .triple_decision_graph import TripleDecisionGraph, TripleDecisionLoss
+from .triple_decision_graph import TripleDecisionGraph
 from .actor_critic import ActorCritic, ExperienceBuffer
 from .kt_predictor import KTPredictor, KTLoss, DataCollator
+from .question_enhancement import QuestionEnhancement
+from .neighborhood_extractor import NeighborhoodExtractor
+from .path_strength import PrecomputedPathStrengthCalculator
 
 
 class KTSequenceDataset(Dataset):
@@ -77,7 +80,7 @@ class KTSequenceDataset(Dataset):
         return self.sequences[idx]
 
 
-class KERKT(nn.Module):
+class KRDKT(nn.Module):
     """
     Complete KER-KT model integrating all components
     """
@@ -104,39 +107,58 @@ class KERKT(nn.Module):
             l2_lambda: L2 regularization coefficient
             dropout: dropout rate
         """
-        super(KERKT, self).__init__()
+        super(KRDKT, self).__init__()
 
         self.n_questions = n_questions
         self.n_concepts = n_concepts
         self.embed_dim = embed_dim
         self.hidden_dim = hidden_dim
+        self.n_layers = n_layers
+        self.alpha = alpha
+        self.beta = beta
 
-        # Triple Decision Graph module
+        # 题目增强模块（新增）
+        self.question_enhancer = QuestionEnhancement(embed_dim, dropout=dropout)
+
+        # 三支决策图模块（更新为新版本）
         self.graph_module = TripleDecisionGraph(
-            n_concepts, embed_dim, n_layers, alpha, beta, lambda_decay
+            n_concepts=n_concepts,
+            embed_dim=embed_dim,
+            n_layers=n_layers,
+            alpha=alpha,
+            beta=beta,
+            max_k=2,
+            distance_decay_lambda=lambda_decay,
+            dropout=dropout
         )
 
-        # Enhanced concept embeddings (will be updated during training)
+        # 邻居提取器和路径强度计算器（训练前初始化）
+        self.neighborhood_extractor = None
+        self.path_strength_calculator = None
+        
+        # 相似度矩阵缓存
+        self.similarity_matrix = None
+
+        # 增强后的概念嵌入（动态更新）
         self.concept_embeddings = None
 
-        # KT Predictor module
+        # KT预测器模块
         self.kt_predictor = KTPredictor(
             n_questions, n_concepts, embed_dim, hidden_dim, self.concept_embeddings, dropout=dropout
         )
 
-        # Actor-Critic module for threshold optimization
+        # Actor-Critic模块（阈值优化）
         state_dim = hidden_dim + 2 + 3  # lstm_hidden + thresholds + region_stats
         action_dim = 5  # 5 actions per threshold
         self.actor_critic = ActorCritic(
             state_dim, action_dim, gamma=gamma, lr_actor=lr_rl, lr_critic=lr_rl
         )
 
-        # Experience buffer for RL training
+        # 经验回放缓冲区
         self.experience_buffer = ExperienceBuffer(capacity=1000)
 
-        # Loss functions
+        # 损失函数
         self.kt_loss_fn = KTLoss(l2_lambda=l2_lambda)
-        self.graph_loss_fn = TripleDecisionLoss()
 
         # Optimizers
         kt_params = list(self.kt_predictor.parameters()) + list(self.graph_module.parameters())
@@ -157,26 +179,92 @@ class KERKT(nn.Module):
         self.batch_count = 0
         self.concept_embeddings_update_frequency = 50  # 优化：每N个batch更新一次concept_embeddings（10 → 50，减少计算）
         self._concept_graph_hash = None  # 用于检测concept_graph是否变化
-
-    def forward(self, batch, concept_graph):
+    
+    def initialize_graph_modules(self, concept_graph):
         """
-        Forward pass
+        初始化图相关模块（在训练开始前调用）
+        
+        Args:
+            concept_graph: [n_concepts, n_concepts] 概念图邻接矩阵
+        """
+        print("初始化图模块...")
+        
+        # 1. 初始化邻居提取器
+        print("  - 提取k阶邻居...")
+        self.neighborhood_extractor = NeighborhoodExtractor(
+            concept_graph, max_k=2, directed=False
+        )
+        
+        # 2. 初始化路径强度计算器
+        print("  - 预计算路径强度...")
+        self.path_strength_calculator = PrecomputedPathStrengthCalculator(
+            concept_graph, self.neighborhood_extractor
+        )
+        
+        print("图模块初始化完成！")
+    
+    def update_epoch_cache(self):
+        """
+        在每个epoch开始时更新缓存（相似度矩阵等）
+        """
+        # 计算当前概念嵌入的余弦相似度矩阵
+        concept_embeds = self.graph_module.concept_embed.weight
+        normalized = F.normalize(concept_embeds, p=2, dim=-1)
+        self.similarity_matrix = torch.matmul(normalized, normalized.T)
+
+    def forward(self, batch, concept_graph, use_question_enhancement=True):
+        """
+        前向传播（集成所有新模块）
+        
+        流程：
+        1. （可选）题目增强
+        2. 三支决策图传播（使用预计算的邻居和路径强度）
+        3. KT预测
 
         Args:
             batch: batch data dictionary
             concept_graph: concept adjacency matrix [n_concepts, n_concepts]
+            use_question_enhancement: 是否使用题目增强
 
         Returns:
             predictions: predicted probabilities
             hidden_states: LSTM hidden states
         """
-        # Get enhanced concept embeddings using real concept graph
-        self.concept_embeddings = self.graph_module(concept_graph)
+        # 1. 题目增强（可选）
+        if use_question_enhancement and 'target_question' in batch:
+            # 获取目标题目的嵌入
+            target_q_embed = self.kt_predictor.question_embed(batch['target_question'])
+            
+            # 增强概念嵌入
+            concept_embeds = self.graph_module.concept_embed.weight
+            enhanced_concepts = self.question_enhancer(target_q_embed, concept_embeds)
+            
+            # 如果是batch，取平均（或使用第一个）
+            if enhanced_concepts.dim() == 3:  # [batch_size, n_concepts, embed_dim]
+                enhanced_concepts = enhanced_concepts.mean(dim=0)  # [n_concepts, embed_dim]
+            
+            # 更新图模块的概念嵌入（临时）
+            self.graph_module.concept_embed.weight.data = enhanced_concepts.detach()
+        
+        # 2. 三支决策图传播
+        if self.neighborhood_extractor is not None and self.path_strength_calculator is not None:
+            # 使用新版本的图传播（带k阶邻居和路径强度）
+            neighborhoods = self.neighborhood_extractor.neighborhoods
+            strength_matrices = {
+                1: self.path_strength_calculator.get_strength_matrix(1),
+                2: self.path_strength_calculator.get_strength_matrix(2)
+            }
+            self.concept_embeddings = self.graph_module(
+                neighborhoods, strength_matrices, self.similarity_matrix
+            )
+        else:
+            # 回退到简单版本（向后兼容）
+            self.concept_embeddings = self.graph_module.concept_embed.weight
+        
+        # 3. 更新KT预测器的概念嵌入
+        self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.detach()
 
-        # Update KT predictor with enhanced embeddings
-        self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.clone()
-
-        # KT prediction
+        # 4. KT预测
         predictions, hidden_states = self.kt_predictor(
             batch['question_seq'],
             batch['concept_seq'],
@@ -189,7 +277,7 @@ class KERKT(nn.Module):
 
     def train_step(self, batch, concept_graph):
         """
-        Single training step
+        训练步骤（简化版，逻辑已移至forward）
 
         Args:
             batch: training batch
@@ -198,59 +286,25 @@ class KERKT(nn.Module):
         Returns:
             losses: dictionary of loss values
         """
-        # 性能优化：只在需要时更新concept_embeddings（concept_graph是固定的）
-        # 检查是否需要更新（每N个batch或concept_graph变化）
-        need_update = False
-        current_hash = id(concept_graph)  # 简单的hash检查
-        
-        if (self._concept_graph_hash != current_hash or 
-            self.concept_embeddings is None or
-            self.batch_count % self.concept_embeddings_update_frequency == 0):
-            need_update = True
-            self._concept_graph_hash = current_hash
-        
-        if need_update:
-            # 更新concept embeddings（图卷积计算）
-            self.concept_embeddings = self.graph_module(concept_graph)
-            # 使用detach()而不是clone()，避免不必要的梯度计算
-            self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.detach()
-        
         self.batch_count += 1
 
-        # KT prediction
-        predictions, hidden_states = self.kt_predictor(
-            batch['question_seq'],
-            batch['concept_seq'],
-            batch['answer_seq'],
-            batch['target_question'],
-            batch['target_concept']
-        )
+        # Forward传播
+        predictions, hidden_states = self.forward(batch, concept_graph)
 
-        # KT loss
+        # KT损失
         kt_loss, bce_loss, l2_reg = self.kt_loss_fn(
             predictions, batch['labels'], self.kt_predictor
         )
 
-        # Graph regularization loss
-        # 每次重新计算concept_embeddings用于graph_loss，确保计算图是新的
-        # 这样可以避免使用已释放的计算图
-        concept_embeddings_for_loss = self.graph_module(concept_graph)
-        graph_loss = self.graph_loss_fn(concept_embeddings_for_loss, concept_graph)
-
-        # Total KT loss
-        total_kt_loss = kt_loss + 0.1 * graph_loss
-
-        # KT optimization
+        # KT优化
         self.kt_optimizer.zero_grad()
-        total_kt_loss.backward()
+        kt_loss.backward()
         self.kt_optimizer.step()
 
         losses = {
             'kt_loss': kt_loss.item(),
             'bce_loss': bce_loss.item(),
-            'l2_reg': l2_reg.item(),
-            'graph_loss': graph_loss.item(),
-            'total_kt_loss': total_kt_loss.item()
+            'l2_reg': l2_reg.item()
         }
 
         # RL training (if enabled)
@@ -497,7 +551,7 @@ class KERKT(nn.Module):
         self.current_thresholds = checkpoint['current_thresholds']
 
 
-def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, patience=10, 
+def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, patience=10, 
                   checkpoint_path='checkpoint_path', lr_kt_pretrain=0.001, lr_kt_finetune=0.0005,
                   warmup_steps=0, lr_decay_patience=None, lr_decay_factor=0.5):
     """
@@ -519,6 +573,13 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
     """
     # 获取设备
     device = concept_graph.device
+    
+    # 初始化图模块（邻居提取、路径强度计算等）
+    if model.neighborhood_extractor is None:
+        model.initialize_graph_modules(concept_graph)
+    
+    # 初始化相似度矩阵缓存
+    model.update_epoch_cache()
     
     best_auc = 0.0
     patience_counter = 0
@@ -547,6 +608,9 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
     
     for epoch in range(50):
         model.train()
+        
+        # 在每个epoch开始时更新相似度矩阵缓存
+        model.update_epoch_cache()
         epoch_losses = []
 
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}/50"):
@@ -618,6 +682,10 @@ def train_kert_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, 
         model.train()
         # 重置batch计数，确保每个epoch开始时更新concept_embeddings
         model.batch_count = 0
+        
+        # 在每个epoch开始时更新相似度矩阵缓存
+        model.update_epoch_cache()
+        
         epoch_losses = []
 
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}/{n_epochs}"):

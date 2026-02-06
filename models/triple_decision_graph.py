@@ -1,361 +1,429 @@
 """
-Triple Decision Graph Representation Module
-Implements the three-way decision theory for knowledge graph representation
+三支决策图模块 (Triple Decision Graph Module) - 完整论文版本
+
+实现论文第3章的核心创新：
+- 显式k阶邻居提取（公式0-8）
+- k跳路径强度计算（公式0-9）
+- 三支决策邻域划分（公式0-11, 0-12）
+- 差异化消息传递（公式0-13~0-16）
+- 层次化融合（公式0-17~0-21）
+
+论文：张慧玲-论文0201.txt 第3章
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from torch.nn import Parameter
+import math
 
 
-class TripleDecisionGraph(nn.Module):
+class TripleDecisionGraphComplete(nn.Module):
     """
-    Knowledge Point Graph Representation with Triple Decision Theory
-
-    This module implements the core innovation of KER-KT:
-    - Builds knowledge point relationship graph
-    - Applies three-way decision theory for neighbor classification
-    - Performs differentiated aggregation for different regions
-    - Multi-layer graph propagation with inter-layer fusion
+    三支决策图模块 - 严格按论文实现
+    
+    核心流程：
+    1. 显式提取k阶邻居（使用NeighborhoodExtractor）
+    2. 计算k跳路径强度（使用PathStrengthCalculator）
+    3. 根据阈值划分三支决策区域（正域/边界域/负域）
+    4. 差异化消息传递（不同区域使用不同MLP）
+    5. 层次化融合（区域内→区域间→跨阶）
+    6. L层传播
     """
-
-    def __init__(self, n_concepts, embed_dim, n_layers=2, alpha=0.7, beta=0.3, lambda_decay=0.1):
+    
+    def __init__(self, n_concepts, embed_dim, n_layers=2,
+                 alpha=0.7, beta=0.3,
+                 max_k=2, distance_decay_lambda=0.5,
+                 dropout=0.1):
         """
-        Initialize Triple Decision Graph module
-
         Args:
-            n_concepts: number of knowledge concepts
-            embed_dim: embedding dimension for concepts
-            n_layers: number of graph propagation layers
-            alpha: acceptance threshold for positive region
-            beta: rejection threshold for negative region
-            lambda_decay: decay factor for negative region
+            n_concepts: 知识点数量
+            embed_dim: 嵌入维度 d_c
+            n_layers: 传播层数 L
+            alpha: 正域阈值（论文：0.7）
+            beta: 负域阈值（论文：0.3）
+            max_k: 最大阶数（论文：2，表示1阶和2阶）
+            distance_decay_lambda: 距离衰减系数 λ
+            dropout: Dropout率
         """
-        super(TripleDecisionGraph, self).__init__()
-
+        super().__init__()
+        
         self.n_concepts = n_concepts
         self.embed_dim = embed_dim
         self.n_layers = n_layers
         self.alpha = alpha
         self.beta = beta
-        self.lambda_decay = lambda_decay
-
-        # Concept embedding layer
+        self.max_k = max_k
+        self.lambda_decay = distance_decay_lambda
+        
+        # 概念嵌入
         self.concept_embed = nn.Embedding(n_concepts, embed_dim)
-
-        # Graph convolution layers for each propagation layer
-        self.gc_layers = nn.ModuleList([
-            nn.Linear(embed_dim, embed_dim) for _ in range(n_layers)
-        ])
-
-        # Attention mechanism for boundary region
-        self.attention_query = nn.Linear(embed_dim, embed_dim)
-        self.attention_key = nn.Linear(embed_dim, embed_dim)
-        self.attention_value = nn.Linear(embed_dim, embed_dim)
-
-        # Gate mechanism for multi-region fusion
-        self.gate_net = nn.Sequential(
-            nn.Linear(embed_dim * 4, embed_dim * 2),
-            nn.ReLU(),
-            nn.Linear(embed_dim * 2, 4),  # 4 gates: self, positive, boundary, negative
-            nn.Softmax(dim=-1)
-        )
-
-        # Layer-wise fusion weights (learnable)
-        self.layer_weights = Parameter(torch.ones(n_layers) / n_layers)
-
-        # Initialize weights
+        
+        # 差异化消息传递MLP（公式0-13~0-16）
+        # 为每个区域（正/边界/负）和每个阶数（1/2）创建MLP
+        self.mlp_pos = nn.ModuleDict()
+        self.mlp_bnd = nn.ModuleDict()
+        self.mlp_neg = nn.ModuleDict()
+        
+        for k in range(1, max_k + 1):
+            # 输入：[h_i || h_j || e_ij] = [2*embed_dim + embed_dim]
+            # 输出：[embed_dim]
+            self.mlp_pos[str(k)] = self._create_mlp(3 * embed_dim, embed_dim, dropout)
+            self.mlp_bnd[str(k)] = self._create_mlp(3 * embed_dim, embed_dim, dropout)
+            self.mlp_neg[str(k)] = self._create_mlp(3 * embed_dim, embed_dim, dropout)
+        
+        # 负域抑制系数 γ_neg（论文公式0-16，可学习）
+        self.gamma_neg = nn.Parameter(torch.tensor(0.5))
+        
+        # 区域间融合矩阵 W_r（公式0-20）
+        # 对每个阶数k，融合该阶的三个区域
+        self.W_r = nn.ModuleDict()
+        for k in range(1, max_k + 1):
+            self.W_r[str(k)] = nn.Linear(3 * embed_dim, embed_dim, bias=False)
+        
+        # 跨阶融合 W_h 和 b_h（公式0-21）
+        # 输入：[h_self || m_1hop || m_2hop] = [(max_k+1)*embed_dim]
+        input_dim_wh = (max_k + 1) * embed_dim
+        self.W_h = nn.Linear(input_dim_wh, embed_dim, bias=True)
+        
+        self.dropout = nn.Dropout(dropout)
+        self.activation = nn.ReLU()
+        
         self._init_weights()
-
+    
+    def _create_mlp(self, input_dim, output_dim, dropout):
+        """
+        创建2层MLP
+        
+        结构：Linear(3d -> 2d) → ReLU → Dropout → Linear(2d -> d)
+        """
+        return nn.Sequential(
+            nn.Linear(input_dim, 2 * output_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(2 * output_dim, output_dim)
+        )
+    
     def _init_weights(self):
-        """Initialize model weights"""
+        """Xavier均匀初始化"""
         nn.init.xavier_uniform_(self.concept_embed.weight)
-
-        for layer in self.gc_layers:
-            nn.init.xavier_uniform_(layer.weight)
-            nn.init.zeros_(layer.bias)
-
-        # Attention weights
-        for module in [self.attention_query, self.attention_key, self.attention_value]:
-            nn.init.xavier_uniform_(module.weight)
-            nn.init.zeros_(module.bias)
-
-        # Gate network weights
-        for layer in self.gate_net:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                nn.init.zeros_(layer.bias)
-
-    def forward(self, concept_graph):
+        
+        # 初始化所有MLP
+        for module_dict in [self.mlp_pos, self.mlp_bnd, self.mlp_neg, self.W_r]:
+            for module in module_dict.values():
+                if isinstance(module, nn.Linear):
+                    nn.init.xavier_uniform_(module.weight)
+                    if module.bias is not None:
+                        nn.init.zeros_(module.bias)
+                elif isinstance(module, nn.Sequential):
+                    for layer in module:
+                        if isinstance(layer, nn.Linear):
+                            nn.init.xavier_uniform_(layer.weight)
+                            if layer.bias is not None:
+                                nn.init.zeros_(layer.bias)
+        
+        # 初始化W_h
+        nn.init.xavier_uniform_(self.W_h.weight)
+        nn.init.zeros_(self.W_h.bias)
+    
+    def forward(self, neighborhoods, strength_matrices, similarity_matrix=None):
         """
-        Forward pass of Triple Decision Graph
-
+        前向传播（L层图传播）
+        
         Args:
-            concept_graph: adjacency matrix of concept graph [n_concepts, n_concepts]
-
+            neighborhoods: dict, {concept_id: {1: [邻居], 2: [邻居]}}
+                          由NeighborhoodExtractor预计算
+            strength_matrices: dict, {1: torch.Tensor, 2: torch.Tensor}
+                              路径强度矩阵，由PathStrengthCalculator预计算
+            similarity_matrix: [n_concepts, n_concepts] 余弦相似度矩阵（可选）
+                              如果不提供，会在forward中计算
+        
         Returns:
-            enhanced_concept_embed: enhanced concept embeddings [n_concepts, embed_dim]
+            final_embeds: [n_concepts, embed_dim] L层传播后的最终嵌入
         """
-        # Initialize concept embeddings
-        concept_embed = self.concept_embed.weight  # [n_concepts, embed_dim]
-
-        # Multi-layer graph propagation
-        layer_outputs = []
-        current_embed = concept_embed
-
+        # 初始化节点嵌入
+        h = self.concept_embed.weight  # [n_concepts, embed_dim]
+        
+        # 计算余弦相似度矩阵（如果未提供）
+        if similarity_matrix is None:
+            similarity_matrix = self._compute_similarity_matrix(h)
+        
+        # L层图传播
         for layer_idx in range(self.n_layers):
-            # Apply triple decision aggregation
-            aggregated_embed = self._triple_decision_aggregate(current_embed, concept_graph)
-
-            # Graph convolution
-            conv_embed = self.gc_layers[layer_idx](aggregated_embed)
-            conv_embed = F.relu(conv_embed)
-
-            layer_outputs.append(conv_embed)
-            current_embed = conv_embed
-
-        # Inter-layer fusion
-        enhanced_embed = self._inter_layer_fusion(layer_outputs)
-
-        return enhanced_embed
-
-    def _triple_decision_aggregate(self, node_embed, adj_matrix):
+            # 对每个节点进行聚合
+            h_new = []
+            for concept_id in range(self.n_concepts):
+                h_updated = self._aggregate_one_node(
+                    concept_id, h, neighborhoods, 
+                    strength_matrices, similarity_matrix
+                )
+                h_new.append(h_updated)
+            
+            h = torch.stack(h_new, dim=0)  # [n_concepts, embed_dim]
+            h = self.dropout(h)
+        
+        return h
+    
+    def _compute_similarity_matrix(self, embeddings):
         """
-        Triple decision aggregation for each node
-
+        计算余弦相似度矩阵（公式0-5）
+        
+        e_ij = c_i·c_j / (||c_i|| ||c_j||)
+        
         Args:
-            node_embed: node embeddings [n_concepts, embed_dim]
-            adj_matrix: adjacency matrix [n_concepts, n_concepts]
-
+            embeddings: [n_concepts, embed_dim]
+        
         Returns:
-            aggregated_embed: aggregated embeddings [n_concepts, embed_dim]
+            similarity_matrix: [n_concepts, n_concepts]
         """
-        batch_size = node_embed.size(0)
-        aggregated_embeddings = []
-
-        for i in range(batch_size):
-            # Get neighbors of node i
-            neighbors = torch.nonzero(adj_matrix[i]).squeeze(-1)
-            if len(neighbors) == 0:
-                # Isolated node, use self embedding
-                aggregated_embeddings.append(node_embed[i])
+        normalized = F.normalize(embeddings, p=2, dim=-1)
+        similarity_matrix = torch.matmul(normalized, normalized.T)
+        return similarity_matrix
+    
+    def _aggregate_one_node(self, concept_id, node_embeds, neighborhoods,
+                           strength_matrices, similarity_matrix):
+        """
+        聚合单个节点的信息（实现论文公式0-17~0-21的完整流程）
+        
+        流程：
+        1. 对每个阶数k（1和2）：
+           a. 获取k阶邻居
+           b. 根据路径强度划分三支决策区域
+           c. 对每个区域进行差异化消息传递
+           d. 区域内聚合（Mean）
+        2. 区域间融合（W_r）
+        3. 跨阶融合（W_h）
+        
+        Args:
+            concept_id: 当前节点ID
+            node_embeds: [n_concepts, embed_dim] 当前层的节点嵌入
+            neighborhoods: dict, {concept_id: {1: [...], 2: [...]}}
+            strength_matrices: dict, {1: Tensor, 2: Tensor}
+            similarity_matrix: [n_concepts, n_concepts]
+        
+        Returns:
+            h_new: [embed_dim] 更新后的节点嵌入
+        """
+        h_i = node_embeds[concept_id]  # [embed_dim]
+        device = h_i.device
+        
+        # 存储每个阶数融合后的消息
+        m_k_list = []
+        
+        # 对每个阶数k
+        for k in range(1, self.max_k + 1):
+            # 1. 获取k阶邻居
+            k_neighbors = neighborhoods[concept_id][k]
+            
+            if len(k_neighbors) == 0:
+                # 没有k阶邻居，使用零向量
+                m_k_list.append(torch.zeros(self.embed_dim, device=device))
                 continue
-
-            # Compute similarities with neighbors
-            node_i_embed = node_embed[i].unsqueeze(0)  # [1, embed_dim]
-            neighbors_embed = node_embed[neighbors]    # [n_neighbors, embed_dim]
-
-            # Cosine similarity
-            similarities = F.cosine_similarity(node_i_embed, neighbors_embed, dim=-1)  # [n_neighbors]
-
-            # Triple decision classification
-            pos_mask = similarities >= self.alpha  # Positive region
-            neg_mask = similarities <= self.beta   # Negative region
-            bound_mask = (similarities > self.beta) & (similarities < self.alpha)  # Boundary region
-
-            # Differentiated aggregation
-            pos_embed = self._positive_aggregate(neighbors_embed, pos_mask)
-            bound_embed = self._boundary_aggregate(neighbors_embed, bound_mask, node_i_embed)
-            neg_embed = self._negative_aggregate(neighbors_embed, neg_mask)
-
-            # Multi-region fusion with gating
-            fused_embed = self._region_fusion(node_i_embed.squeeze(0), pos_embed, bound_embed, neg_embed)
-            aggregated_embeddings.append(fused_embed)
-
-        return torch.stack(aggregated_embeddings)
-
-    def _positive_aggregate(self, neighbors_embed, pos_mask):
+            
+            # 2. 获取k跳路径强度
+            neighbor_strengths = strength_matrices[k][concept_id, k_neighbors]  # [n_neighbors]
+            
+            # 3. 三支决策划分（公式0-11, 0-12）
+            pos_mask = neighbor_strengths >= self.alpha
+            neg_mask = neighbor_strengths <= self.beta
+            bnd_mask = (neighbor_strengths > self.beta) & (neighbor_strengths < self.alpha)
+            
+            # 转换邻居列表为tensor以支持mask索引
+            k_neighbors_tensor = torch.tensor(k_neighbors, dtype=torch.long, device=device)
+            
+            # 4. 差异化消息传递（公式0-13~0-16）
+            m_pos = self._message_passing_region(
+                concept_id, k_neighbors_tensor[pos_mask].tolist(), k, 'pos',
+                node_embeds, similarity_matrix
+            )
+            m_bnd = self._message_passing_region(
+                concept_id, k_neighbors_tensor[bnd_mask].tolist(), k, 'bnd',
+                node_embeds, similarity_matrix
+            )
+            m_neg = self._message_passing_region(
+                concept_id, k_neighbors_tensor[neg_mask].tolist(), k, 'neg',
+                node_embeds, similarity_matrix
+            )
+            
+            # 5. 区域间融合（公式0-20）
+            # m_i^(k,l) = W_r · [m_pos || m_bnd || m_neg]
+            concat_regions = torch.cat([m_pos, m_bnd, m_neg], dim=-1)  # [3*embed_dim]
+            m_k = self.W_r[str(k)](concat_regions)  # [embed_dim]
+            m_k_list.append(m_k)
+        
+        # 6. 跨阶融合（公式0-21）
+        # h_i^(l+1) = σ(W_h · [h_i^(l) || m_1 || m_2] + b_h)
+        concat_all = torch.cat([h_i] + m_k_list, dim=-1)  # [(max_k+1)*embed_dim]
+        h_new = self.W_h(concat_all)  # [embed_dim]
+        h_new = self.activation(h_new)
+        
+        return h_new
+    
+    def _message_passing_region(self, source_id, neighbor_ids, k, region_type,
+                                node_embeds, similarity_matrix):
         """
-        Positive region aggregation: simple mean pooling
-
+        对指定区域进行差异化消息传递
+        
+        论文公式0-13~0-16：
+        - 正域：m_j→i^(pos,k,l) = σ(MLP_pos([h_i || h_j || e_ij])) * ω(k)
+        - 边界域：m_j→i^(bnd,k,l) = σ(MLP_bnd([h_i || h_j || e_ij])) * ω(k)
+        - 负域：m_j→i^(neg,k,l) = -γ_neg * σ(MLP_neg([h_i || h_j || e_ij])) * ω(k)
+        
         Args:
-            neighbors_embed: neighbor embeddings [n_neighbors, embed_dim]
-            pos_mask: boolean mask for positive region [n_neighbors]
-
+            source_id: 源节点ID
+            neighbor_ids: 区域内邻居ID列表 (tensor)
+            k: 阶数
+            region_type: 'pos', 'bnd', 或 'neg'
+            node_embeds: [n_concepts, embed_dim]
+            similarity_matrix: [n_concepts, n_concepts]
+        
         Returns:
-            pos_embed: positive region embedding [embed_dim]
+            aggregated_message: [embed_dim] 区域内聚合后的消息（公式0-17~0-19）
         """
-        if not pos_mask.any():
-            return torch.zeros(self.embed_dim, device=neighbors_embed.device)
-
-        pos_neighbors = neighbors_embed[pos_mask]  # [n_pos, embed_dim]
-        pos_embed = torch.mean(pos_neighbors, dim=0)  # [embed_dim]
-
-        return pos_embed
-
-    def _boundary_aggregate(self, neighbors_embed, bound_mask, node_embed):
-        """
-        Boundary region aggregation: attention mechanism
-
-        Args:
-            neighbors_embed: neighbor embeddings [n_neighbors, embed_dim]
-            bound_mask: boolean mask for boundary region [n_neighbors]
-            node_embed: current node embedding [1, embed_dim]
-
-        Returns:
-            bound_embed: boundary region embedding [embed_dim]
-        """
-        if not bound_mask.any():
-            return torch.zeros(self.embed_dim, device=neighbors_embed.device)
-
-        bound_neighbors = neighbors_embed[bound_mask]  # [n_bound, embed_dim]
-
-        # Attention computation
-        query = self.attention_query(node_embed)      # [1, embed_dim]
-        key = self.attention_key(bound_neighbors)     # [n_bound, embed_dim]
-        value = self.attention_value(bound_neighbors) # [n_bound, embed_dim]
-
-        # Scaled dot-product attention
-        attention_scores = torch.matmul(query, key.transpose(-2, -1)) / (self.embed_dim ** 0.5)  # [1, n_bound]
-        attention_weights = F.softmax(attention_scores, dim=-1)  # [1, n_bound]
-
-        # Weighted aggregation
-        bound_embed = torch.matmul(attention_weights, value).squeeze(0)  # [embed_dim]
-
-        return bound_embed
-
-    def _negative_aggregate(self, neighbors_embed, neg_mask):
-        """
-        Negative region aggregation: weighted decay
-
-        Args:
-            neighbors_embed: neighbor embeddings [n_neighbors, embed_dim]
-            neg_mask: boolean mask for negative region [n_neighbors]
-
-        Returns:
-            neg_embed: negative region embedding [embed_dim]
-        """
-        if not neg_mask.any():
-            return torch.zeros(self.embed_dim, device=neighbors_embed.device)
-
-        neg_neighbors = neighbors_embed[neg_mask]  # [n_neg, embed_dim]
-        neg_embed = torch.mean(neg_neighbors, dim=0)  # [embed_dim]
-
-        # Apply decay factor
-        neg_embed = neg_embed * self.lambda_decay
-
-        return neg_embed
-
-    def _region_fusion(self, self_embed, pos_embed, bound_embed, neg_embed):
-        """
-        Multi-region fusion with gating mechanism
-
-        Args:
-            self_embed: self embedding [embed_dim]
-            pos_embed: positive region embedding [embed_dim]
-            bound_embed: boundary region embedding [embed_dim]
-            neg_embed: negative region embedding [embed_dim]
-
-        Returns:
-            fused_embed: fused embedding [embed_dim]
-        """
-        # Concatenate all region embeddings
-        concat_embed = torch.cat([self_embed, pos_embed, bound_embed, neg_embed], dim=-1)  # [4*embed_dim]
-
-        # Compute gating weights
-        gate_weights = self.gate_net(concat_embed)  # [4]
-
-        # Weighted fusion
-        regions = torch.stack([self_embed, pos_embed, bound_embed, neg_embed], dim=0)  # [4, embed_dim]
-        fused_embed = torch.sum(gate_weights.unsqueeze(-1) * regions, dim=0)  # [embed_dim]
-
-        return fused_embed
-
-    def _inter_layer_fusion(self, layer_outputs):
-        """
-        Inter-layer fusion of multi-layer propagation results
-
-        Args:
-            layer_outputs: list of layer outputs [n_layers, n_concepts, embed_dim]
-
-        Returns:
-            fused_embed: fused embedding [n_concepts, embed_dim]
-        """
-        # Normalize layer weights
-        weights = F.softmax(self.layer_weights, dim=0)  # [n_layers]
-
-        # Weighted sum of layer outputs
-        stacked_outputs = torch.stack(layer_outputs, dim=0)  # [n_layers, n_concepts, embed_dim]
-        fused_embed = torch.sum(weights.unsqueeze(-1).unsqueeze(-1) * stacked_outputs, dim=0)  # [n_concepts, embed_dim]
-
-        return fused_embed
-
+        device = node_embeds.device
+        
+        # 如果该区域没有邻居
+        if len(neighbor_ids) == 0:
+            return torch.zeros(self.embed_dim, device=device)
+        
+        h_i = node_embeds[source_id]  # [embed_dim]
+        
+        # 收集所有邻居的消息
+        messages = []
+        for neighbor_id in neighbor_ids:
+            h_j = node_embeds[neighbor_id]  # [embed_dim]
+            e_ij_scalar = similarity_matrix[source_id, neighbor_id]  # 标量
+            
+            # 将标量边特征扩展为向量（决策：扩展为embed_dim维）
+            e_ij_vec = torch.ones(self.embed_dim, device=device) * e_ij_scalar
+            
+            # 拼接 [h_i || h_j || e_ij]
+            concat = torch.cat([h_i, h_j, e_ij_vec], dim=-1)  # [3*embed_dim]
+            
+            # 选择对应的MLP
+            if region_type == 'pos':
+                mlp = self.mlp_pos[str(k)]
+            elif region_type == 'bnd':
+                mlp = self.mlp_bnd[str(k)]
+            else:  # neg
+                mlp = self.mlp_neg[str(k)]
+            
+            # MLP处理
+            message = mlp(concat)  # [embed_dim]
+            
+            # 距离衰减 ω(k) = λ^(k-1)（公式0-10）
+            decay_weight = self.lambda_decay ** (k - 1)
+            message = message * decay_weight
+            
+            # 负域特殊处理（公式0-16）
+            if region_type == 'neg':
+                # 限制γ_neg在[0,1]范围
+                gamma = torch.clamp(self.gamma_neg, 0.0, 1.0)
+                message = -gamma * message
+            
+            messages.append(message)
+        
+        # 区域内聚合：Mean（公式0-17~0-19）
+        aggregated = torch.stack(messages, dim=0).mean(dim=0)  # [embed_dim]
+        
+        return aggregated
+    
     def update_thresholds(self, new_alpha=None, new_beta=None):
         """
-        Update triple decision thresholds (for reinforcement learning)
-
+        更新三支决策阈值（供Actor-Critic使用）
+        
         Args:
-            new_alpha: new acceptance threshold
-            new_beta: new rejection threshold
+            new_alpha: 新的正域阈值
+            new_beta: 新的负域阈值
         """
         if new_alpha is not None:
             self.alpha = new_alpha
         if new_beta is not None:
             self.beta = new_beta
-
-
-class TripleDecisionLoss(nn.Module):
-    """
-    Loss function for triple decision graph training
-    """
-
-    def __init__(self, margin=0.1):
-        super(TripleDecisionLoss, self).__init__()
-        self.margin = margin
-
-    def forward(self, embeddings, adj_matrix):
+    
+    def readout(self, node_embeds, method='mean'):
         """
-        Compute triple decision loss
-
+        Readout函数：将节点嵌入聚合为图级嵌入（公式0-22, 0-23）
+        
+        论文公式0-22: h'_{c_i} = Readout_1({h_i^(L)})  (节点级)
+        论文公式0-23: z_t = Readout_2({h_i^(L) | c_i ∈ C})  (图级)
+        
         Args:
-            embeddings: concept embeddings [n_concepts, embed_dim]
-            adj_matrix: adjacency matrix [n_concepts, n_concepts]
-
+            node_embeds: [n_concepts, embed_dim] L层传播后的节点嵌入
+            method: 'mean' | 'sum' | 'max' | 'attention'
+        
         Returns:
-            loss: triple decision loss
+            graph_embed: [embed_dim] 图级嵌入 z_t
         """
-        # Cosine similarity matrix
-        norm_embed = F.normalize(embeddings, p=2, dim=-1)
-        sim_matrix = torch.matmul(norm_embed, norm_embed.t())  # [n_concepts, n_concepts]
-
-        # Mask self-similarities
-        mask = torch.eye(embeddings.size(0), device=embeddings.device).bool()
-        sim_matrix = sim_matrix.masked_fill(mask, -1)
-
-        # Positive pairs (connected concepts)
-        pos_mask = (adj_matrix > 0).float()
-        pos_sim = sim_matrix * pos_mask
-        pos_loss = torch.sum((1 - pos_sim) * pos_mask) / (torch.sum(pos_mask) + 1e-8)
-
-        # Negative pairs (disconnected concepts)
-        neg_mask = (adj_matrix == 0).float() * (1 - torch.eye(embeddings.size(0), device=embeddings.device))
-        neg_sim = sim_matrix * neg_mask
-        neg_loss = torch.sum(torch.relu(neg_sim - self.margin) * neg_mask) / (torch.sum(neg_mask) + 1e-8)
-
-        total_loss = pos_loss + neg_loss
-        return total_loss
+        if method == 'mean':
+            return node_embeds.mean(dim=0)
+        elif method == 'sum':
+            return node_embeds.sum(dim=0)
+        elif method == 'max':
+            return node_embeds.max(dim=0)[0]
+        elif method == 'attention':
+            # 简单的自注意力readout
+            attn_scores = torch.matmul(node_embeds, node_embeds.mean(dim=0))
+            attn_weights = F.softmax(attn_scores, dim=0)
+            return torch.sum(attn_weights.unsqueeze(-1) * node_embeds, dim=0)
+        else:
+            raise ValueError(f"Unknown readout method: {method}")
 
 
-if __name__ == "__main__":
-    # Test the module
-    n_concepts = 124  # ASSIST09
-    embed_dim = 128
+# 保留旧名称作为别名（向后兼容）
+TripleDecisionGraph = TripleDecisionGraphComplete
 
-    # Create synthetic concept graph
-    concept_graph = torch.rand(n_concepts, n_concepts)
-    concept_graph = (concept_graph + concept_graph.t()) / 2  # Symmetric
-    concept_graph = (concept_graph > 0.3).float()  # Sparsify
 
-    # Initialize model
-    model = TripleDecisionGraph(n_concepts, embed_dim)
-    loss_fn = TripleDecisionLoss()
+if __name__ == '__main__':
+    # 测试
+    print("="*50)
+    print("三支决策图模块测试（完整版）")
+    print("="*50)
+    
+    # 参数
+    n_concepts = 10
+    embed_dim = 64
+    n_layers = 2
+    
+    # 创建模块
+    model = TripleDecisionGraphComplete(
+        n_concepts=n_concepts,
+        embed_dim=embed_dim,
+        n_layers=n_layers
+    )
+    
+    # 创建测试数据
+    # 1. 邻居字典
+    neighborhoods = {}
+    for i in range(n_concepts):
+        neighborhoods[i] = {
+            1: torch.tensor([j for j in range(n_concepts) if abs(i-j)==1]),
+            2: torch.tensor([j for j in range(n_concepts) if abs(i-j)==2])
+        }
+    
+    # 2. 路径强度矩阵
+    strength_1hop = torch.rand(n_concepts, n_concepts)
+    strength_2hop = torch.rand(n_concepts, n_concepts) * 0.5
+    strength_matrices = {1: strength_1hop, 2: strength_2hop}
+    
+    print(f"\n输入:")
+    print(f"  节点数: {n_concepts}")
+    print(f"  嵌入维度: {embed_dim}")
+    print(f"  传播层数: {n_layers}")
+    
+    # 前向传播
+    output = model(neighborhoods, strength_matrices)
+    
+    print(f"\n输出:")
+    print(f"  输出形状: {output.shape}")
+    print(f"  预期形状: [{n_concepts}, {embed_dim}]")
+    
+    # 测试阈值更新
+    print(f"\n测试阈值更新:")
+    print(f"  初始 α={model.alpha}, β={model.beta}")
+    model.update_thresholds(new_alpha=0.8, new_beta=0.2)
+    print(f"  更新后 α={model.alpha}, β={model.beta}")
+    
+    print("\n" + "="*50)
+    print("测试通过！")
+    print("="*50)
 
-    # Forward pass
-    enhanced_embed = model(concept_graph)
-    loss = loss_fn(enhanced_embed, concept_graph)
-
-    print(f"Enhanced embeddings shape: {enhanced_embed.shape}")
-    print(f"Triple decision loss: {loss.item():.4f}")
-    print("Triple Decision Graph module test passed!")

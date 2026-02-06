@@ -12,7 +12,7 @@ import os
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
 
-from models.kert_kt import KERKT
+from models.krd_kt import KRDKT
 from experiments.run_experiment import get_dataset_config, load_processed_data, create_data_loaders
 
 
@@ -32,7 +32,7 @@ def diagnose_model():
     concept_graph = concept_graph.to(device)
     
     # 创建模型
-    model = KERKT(
+    model = KRDKT(
         n_questions=dataset_info['n_questions'],
         n_concepts=dataset_info['n_concepts'],
         embed_dim=config['embed_dim'],
