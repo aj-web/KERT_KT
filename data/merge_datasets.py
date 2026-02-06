@@ -6,7 +6,12 @@
 """
 
 import os
+import sys
 import pickle
+
+# 添加项目根目录到路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 
 def merge_datasets():
@@ -17,11 +22,11 @@ def merge_datasets():
     
     all_datasets = {}
     
-    # 数据集列表
+    # 使用绝对路径，避免路径重复问题
     datasets = {
-        'assist09': 'data/assist09_processed.pkl',
-        'ednet': 'data/ednet_processed.pkl',
-        'junyi': 'data/junyi_processed.pkl'
+        'assist09': os.path.join(project_root, 'data', 'assist09_processed.pkl'),
+        'ednet': os.path.join(project_root, 'data', 'ednet_processed.pkl'),
+        'junyi': os.path.join(project_root, 'data', 'junyi_processed.pkl')
     }
     
     # 加载并合并
@@ -46,7 +51,7 @@ def merge_datasets():
     
     # 保存合并后的数据
     if all_datasets:
-        output_file = 'data/processed_datasets.pkl'
+        output_file = os.path.join(project_root, 'data', 'processed_datasets.pkl')
         print(f"\n保存合并数据到: {output_file}")
         with open(output_file, 'wb') as f:
             pickle.dump(all_datasets, f)

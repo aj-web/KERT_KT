@@ -325,7 +325,8 @@ def process_junyi():
     
     # 9. 保存数据
     print("\n9. 保存数据...")
-    output_file = "data/junyi_processed.pkl"
+    # 使用绝对路径，避免路径重复问题
+    output_file = os.path.join(project_root, "data", "junyi_processed.pkl")
     
     processed_data = {
         'junyi': {

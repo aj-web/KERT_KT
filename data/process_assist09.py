@@ -192,7 +192,8 @@ def process_assist09():
     
     # 8. 保存数据
     print("\n8. 保存数据...")
-    output_file = "data/assist09_processed.pkl"
+    # 使用绝对路径，避免路径重复问题
+    output_file = os.path.join(project_root, "data", "assist09_processed.pkl")
     
     processed_data = {
         'assist09': {
