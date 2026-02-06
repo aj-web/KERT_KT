@@ -192,7 +192,8 @@ class ActorCritic(nn.Module):
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr_critic)
 
         # Threshold step sizes (discrete actions)
-        self.threshold_steps = torch.linspace(0.05, 0.15, action_dim)  # Action space
+        # Register as buffer so it moves with the model to GPU
+        self.register_buffer('threshold_steps', torch.linspace(0.05, 0.15, action_dim))
 
         # Current thresholds
         self.current_alpha = 0.7
