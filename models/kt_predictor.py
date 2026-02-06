@@ -130,8 +130,9 @@ class KTPredictor(nn.Module):
         # LSTM encoding
         lstm_outputs, (h_n, c_n) = self.lstm(lstm_inputs)  # [batch_size, seq_len, hidden_dim]
 
-        # Current state (last hidden state)
-        current_state = h_n.squeeze(0)  # [batch_size, hidden_dim]
+        # Current state (last hidden state from the last LSTM layer)
+        # h_n shape: [num_layers, batch_size, hidden_dim]
+        current_state = h_n[-1]  # Take last layer: [batch_size, hidden_dim]
 
         # Attention-based context aggregation
         context_vector = self._attention_mechanism(lstm_outputs)  # [batch_size, hidden_dim]
