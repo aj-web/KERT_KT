@@ -48,8 +48,10 @@ class KTSequenceDataset(Dataset):
     def _prepare_sequences(self):
         """Prepare sequences for each student"""
         for student_id, group in self.student_groups:
-            # Sort by timestamp
-            group = group.sort_values('timestamp')
+            # Sort by timestamp if available, otherwise assume data is already sorted
+            if 'timestamp' in group.columns:
+                group = group.sort_values('timestamp')
+            # If no timestamp, data is assumed to be in chronological order already
 
             questions = group['question_id'].values
             concepts = group['concept_id'].values

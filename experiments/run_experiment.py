@@ -34,10 +34,25 @@ def load_processed_data(dataset_name):
 
 def create_data_loaders(dataset_info, batch_size=32, max_seq_len=200):
     """Create data loaders for training and evaluation"""
+    import pandas as pd
+    
+    # Convert to DataFrame (handle both list of dicts and DataFrame)
+    def ensure_dataframe(data):
+        if isinstance(data, pd.DataFrame):
+            return data
+        elif isinstance(data, list):
+            return pd.DataFrame(data)
+        else:
+            raise ValueError(f"Unsupported data type: {type(data)}")
+    
+    train_data = ensure_dataframe(dataset_info['train'])
+    val_data = ensure_dataframe(dataset_info['val'])
+    test_data = ensure_dataframe(dataset_info['test'])
+    
     # Create datasets
-    train_dataset = KTSequenceDataset(dataset_info['train'], max_seq_len)
-    val_dataset = KTSequenceDataset(dataset_info['val'], max_seq_len)
-    test_dataset = KTSequenceDataset(dataset_info['test'], max_seq_len)
+    train_dataset = KTSequenceDataset(train_data, max_seq_len)
+    val_dataset = KTSequenceDataset(val_data, max_seq_len)
+    test_dataset = KTSequenceDataset(test_data, max_seq_len)
 
     # Create data collator
     collator = DataCollator(max_seq_len)
@@ -307,7 +322,7 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
             'lr_kt_finetune': 0.0005,  # 优化：相应降低微调学习率
-            'batch_size': 32,          # 平衡：适度增加batch size（32→48），加速约1.5倍
+            'batch_size': 64,          # 速度优化：增大batch size（32→64），加速约2倍
             'dropout': 0.28,            # 优化：进一步增大dropout，防止过拟合
             'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
             'n_epochs': 30,            # 优化：减少总轮数（模型通常在前10个epoch收敛）
