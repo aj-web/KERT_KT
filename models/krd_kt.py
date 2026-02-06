@@ -641,11 +641,11 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
         if scheduler is not None:
             scheduler.step(val_metrics['auc'])
             current_lr = model.kt_optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['total_kt_loss']:.4f}, "
+            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['kt_loss']:.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}, "
                   f"LR: {current_lr:.6f}")
         else:
-            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['total_kt_loss']:.4f}, "
+            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['kt_loss']:.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
 
         # Save best model
@@ -707,13 +707,15 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
         if scheduler is not None:
             scheduler.step(val_metrics['auc'])
             current_lr = model.kt_optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch+1}: Total Loss: {avg_losses.get('total_kt_loss', 0):.4f}, "
-                  f"RL Loss: {avg_losses.get('actor_loss', 0):.4f}, "
+            print(f"Epoch {epoch+1}: KT Loss: {avg_losses.get('kt_loss', 0):.4f}, "
+                  f"Actor Loss: {avg_losses.get('actor_loss', 0):.4f}, "
+                  f"Critic Loss: {avg_losses.get('critic_loss', 0):.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}, "
                   f"LR: {current_lr:.6f}")
         else:
-            print(f"Epoch {epoch+1}: Total Loss: {avg_losses.get('total_kt_loss', 0):.4f}, "
-                  f"RL Loss: {avg_losses.get('actor_loss', 0):.4f}, "
+            print(f"Epoch {epoch+1}: KT Loss: {avg_losses.get('kt_loss', 0):.4f}, "
+                  f"Actor Loss: {avg_losses.get('actor_loss', 0):.4f}, "
+                  f"Critic Loss: {avg_losses.get('critic_loss', 0):.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
 
         # Save best model
@@ -732,12 +734,12 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
 
 
 if __name__ == "__main__":
-    # Test KER-KT model
+    # Test KRD-KT model
     n_questions = 17751  # ASSIST09
     n_concepts = 124
 
     # Initialize model
-    model = KERKT(n_questions, n_concepts)
+    model = KRDKT(n_questions, n_concepts)
 
     # Create dummy data for testing
     batch_size = 4
