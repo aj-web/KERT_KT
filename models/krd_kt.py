@@ -508,6 +508,9 @@ class KRDKT(nn.Module):
         Returns:
             metrics: evaluation metrics
         """
+        # 保存当前训练状态
+        was_training = self.training
+        
         self.eval()
         all_predictions = []
         all_labels = []
@@ -525,6 +528,10 @@ class KRDKT(nn.Module):
         # Compute metrics
         auc = roc_auc_score(all_labels, all_predictions)
         acc = accuracy_score(all_labels, np.round(all_predictions))
+
+        # 恢复原来的训练状态
+        if was_training:
+            self.train()
 
         return {'auc': auc, 'acc': acc}
 
