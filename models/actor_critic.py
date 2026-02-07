@@ -319,13 +319,17 @@ class ActorCritic(nn.Module):
             dones: batch of done flags [batch_size]
             log_probs: batch of action log probabilities [batch_size, 2]
         """
-        # Convert to tensors
-        states = torch.tensor(states, dtype=torch.float32)
-        actions = torch.tensor(actions, dtype=torch.long)
-        rewards = torch.tensor(rewards, dtype=torch.float32)
-        next_states = torch.tensor(next_states, dtype=torch.float32)
-        dones = torch.tensor(dones, dtype=torch.float32)
-        old_log_probs = torch.tensor(log_probs, dtype=torch.float32)
+        # Get device from actor model
+        device = next(self.actor.parameters()).device
+        
+        # Convert to tensors efficiently (避免 "list of numpy arrays" 警告)
+        # 先转换为 numpy array，再转为 tensor
+        states = torch.from_numpy(np.array(states)).float().to(device)
+        actions = torch.from_numpy(np.array(actions)).long().to(device)
+        rewards = torch.from_numpy(np.array(rewards)).float().to(device)
+        next_states = torch.from_numpy(np.array(next_states)).float().to(device)
+        dones = torch.from_numpy(np.array(dones)).float().to(device)
+        old_log_probs = torch.from_numpy(np.array(log_probs)).float().to(device)
 
         # Critic update
         with torch.no_grad():
