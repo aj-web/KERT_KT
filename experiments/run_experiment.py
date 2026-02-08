@@ -382,14 +382,18 @@ def get_dataset_config(dataset_name):
             'lr_rl': 1e-4,
             'lambda_rl': 0.1,
             
-            # Training parameters
+            # Training parameters (优化版)
             'lr_kt_pretrain': 0.001,
             'lr_kt_finetune': 0.0005,
-            'batch_size': 64,      # Junyi数据量最大，用更大batch
+            'batch_size': 128,     # 优化：增大batch size，加速训练（64→128）
             'dropout': 0.3,        # Junyi防止过拟合，用更大dropout
-            'max_seq_len': 200,
-            'n_epochs': 100,
-            'patience': 10
+            'max_seq_len': 100,    # 优化：减少序列长度，加速训练（200→100）
+            'n_epochs': 50,        # KRD-KT-SL 监督学习版：只运行 Phase 1
+            'patience': 10,        # Early stopping
+            'l2_lambda': 1e-5,     # L2正则化
+            'warmup_steps': 2000,  # Warmup步数
+            'lr_decay_patience': 5,
+            'lr_decay_factor': 0.5
         }
     }
     
