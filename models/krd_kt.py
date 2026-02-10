@@ -90,7 +90,7 @@ class KRDKT(nn.Module):
     def __init__(self, n_questions, n_concepts, embed_dim=128, hidden_dim=256,
                  n_layers=2, lstm_layers=2, alpha=0.7, beta=0.3, lambda_decay=0.1,
                  gamma=0.99, lr_kt=1e-3, lr_rl=1e-4, lambda_rl=0.1, 
-                 l2_lambda=1e-5, dropout=0.2):
+                 l2_lambda=1e-5, dropout=0.2, grad_clip=None):
         """
         Initialize KRD-KT model
 
@@ -172,6 +172,7 @@ class KRDKT(nn.Module):
         # Training hyperparameters
         self.lambda_rl = lambda_rl
         self.current_thresholds = (alpha, beta)
+        self.grad_clip = grad_clip  # 梯度裁剪阈值
 
         # Training state
         self.graph_trained = False
@@ -304,6 +305,11 @@ class KRDKT(nn.Module):
         # KT优化
         self.kt_optimizer.zero_grad()
         kt_loss.backward()
+        
+        # 梯度裁剪（防止梯度爆炸）
+        if hasattr(self, 'grad_clip') and self.grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
+        
         self.kt_optimizer.step()
 
         losses = {

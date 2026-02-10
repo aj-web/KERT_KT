@@ -161,7 +161,8 @@ def run_single_experiment(dataset_name, config=None, n_runs=5):
             lr_rl=config['lr_rl'],
             lambda_rl=config['lambda_rl'],
             l2_lambda=config.get('l2_lambda', 1e-5),  # L2正则化系数
-            dropout=config.get('dropout', 0.2)  # Dropout率
+            dropout=config.get('dropout', 0.2),  # Dropout率
+            grad_clip=config.get('grad_clip', None)  # 梯度裁剪阈值
         )
         
         # Move model to device
@@ -365,14 +366,14 @@ def get_dataset_config(dataset_name):
             'lr_decay_factor': 0.5
         },
         'junyi': {
-            # Model hyperparameters (论文表4.4)
-            'embed_dim': 256,      # d_k, d_q (Junyi知识点最多，用更大维度)
-            'hidden_dim': 512,     # d_h (Junyi规模最大，用更大隐藏层)
-            'n_layers': 3,         # L (Junyi知识点图最复杂，用3层)
+            # Model hyperparameters (修正：降低模型复杂度，防止梯度爆炸)
+            'embed_dim': 128,      # 降低维度 256→128（与ASSIST09一致）
+            'hidden_dim': 256,     # 降低维度 512→256（与ASSIST09一致）
+            'n_layers': 2,         # 减少层数 3→2（与ASSIST09一致）
             
             # Triple decision parameters
-            'alpha': 0.65,         # Junyi略微调整
-            'beta': 0.35,
+            'alpha': 0.7,          # 与ASSIST09一致
+            'beta': 0.3,           # 与ASSIST09一致
             'lambda_decay': 0.1,
             
             # RL parameters
@@ -382,18 +383,19 @@ def get_dataset_config(dataset_name):
             'lr_rl': 1e-4,
             'lambda_rl': 0.1,
             
-            # Training parameters (优化版)
-            'lr_kt_pretrain': 0.001,
-            'lr_kt_finetune': 0.0005,
-            'batch_size': 128,     # 优化：增大batch size，加速训练（64→128）
-            'dropout': 0.3,        # Junyi防止过拟合，用更大dropout
-            'max_seq_len': 100,    # 优化：减少序列长度，加速训练（200→100）
-            'n_epochs': 50,        # KRD-KT-SL 监督学习版：只运行 Phase 1
-            'patience': 10,        # Early stopping
+            # Training parameters (优化版 - 防止梯度爆炸)
+            'lr_kt_pretrain': 0.0005,  # 降低学习率 0.001→0.0005
+            'lr_kt_finetune': 0.00025, # 降低学习率
+            'batch_size': 128,     # 增大batch size，稳定训练
+            'dropout': 0.3,        # 保持dropout
+            'max_seq_len': 100,    # 减少序列长度
+            'n_epochs': 50,        # KRD-KT-SL 监督学习版
+            'patience': 8,         # 与ASSIST09一致
             'l2_lambda': 1e-5,     # L2正则化
             'warmup_steps': 2000,  # Warmup步数
             'lr_decay_patience': 5,
-            'lr_decay_factor': 0.5
+            'lr_decay_factor': 0.5,
+            'grad_clip': 1.0       # 添加梯度裁剪
         }
     }
     
