@@ -351,11 +351,48 @@ def process_junyi():
     
     # 2. 数据清洗
     print("\n2. 数据清洗...")
-    df = df.dropna(subset=['user_id', 'exercise', 'is_correct', 'timestamp_TW'])
+    
+    # 自动检测列名（不同版本的Junyi数据集列名可能不同）
+    print(f"  数据集列名: {df.columns.tolist()}")
+    
+    # 检测正确率列名
+    correct_col = None
+    for col in ['is_correct', 'correct', 'is_correct_first_attempt']:
+        if col in df.columns:
+            correct_col = col
+            break
+    
+    if correct_col is None:
+        print(f"[ERROR] 未找到正确率列，可用列: {df.columns.tolist()}")
+        return False
+    
+    # 检测时间戳列名
+    timestamp_col = None
+    for col in ['timestamp_TW', 'timestamp', 'time_done', 'time_done_timestamp']:
+        if col in df.columns:
+            timestamp_col = col
+            break
+    
+    if timestamp_col is None:
+        print(f"[ERROR] 未找到时间戳列，可用列: {df.columns.tolist()}")
+        return False
+    
+    print(f"  使用列: user_id, exercise, {correct_col}, {timestamp_col}")
+    
+    # 移除缺失值
+    df = df.dropna(subset=['user_id', 'exercise', correct_col, timestamp_col])
     print(f"  移除缺失值后: {len(df)}")
     
+    # 统一列名
+    df = df.rename(columns={correct_col: 'is_correct', timestamp_col: 'timestamp_orig'})
+    
     # 过滤异常时间
-    df['timestamp'] = pd.to_datetime(df['timestamp_TW']).astype(np.int64) // 10**9
+    try:
+        df['timestamp'] = pd.to_datetime(df['timestamp_orig']).astype(np.int64) // 10**9
+    except:
+        # 如果已经是时间戳格式
+        df['timestamp'] = df['timestamp_orig'].astype(np.int64)
+    
     df = df[(df['timestamp'] > 0)]
     print(f"  过滤异常时间后: {len(df)}")
     
