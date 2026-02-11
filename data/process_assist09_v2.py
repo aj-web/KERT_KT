@@ -251,16 +251,18 @@ def process_assist09():
     print("ASSIST09数据集预处理")
     print("="*50)
     
-    # 数据路径（EduData下载后的实际路径）
-    data_path = "data/raw/2009_skill_builder_data_corrected/skill_builder_data_corrected.csv"
+    # 数据路径（使用绝对路径，EduData下载后的实际路径）
+    data_path = os.path.join(project_root, "data", "raw", "2009_skill_builder_data_corrected", "skill_builder_data_corrected.csv")
     
     # 如果新路径不存在，尝试旧路径
     if not os.path.exists(data_path):
-        data_path_old = "data/raw/assistment-2009-2010-skill/skill_builder_data.csv"
+        data_path_old = os.path.join(project_root, "data", "raw", "assistment-2009-2010-skill", "skill_builder_data.csv")
         if os.path.exists(data_path_old):
             data_path = data_path_old
         else:
             print(f"[ERROR] 数据文件不存在")
+            print(f"当前工作目录: {os.getcwd()}")
+            print(f"项目根目录: {project_root}")
             print("请先运行下载...")
             if not download_assist09():
                 return False

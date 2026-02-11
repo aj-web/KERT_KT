@@ -22,6 +22,32 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 
+def download_junyi():
+    """下载Junyi数据集"""
+    print("="*50)
+    print("Junyi数据集下载")
+    print("="*50)
+    
+    # 使用EduData库下载
+    try:
+        from EduData import get_data
+        print("使用EduData库下载Junyi...")
+        get_data("junyi", data_dir=os.path.join(project_root, "data", "raw"))
+        print("[OK] 下载完成")
+        return True
+    except ImportError:
+        print("[ERROR] EduData库未安装")
+        print("请运行: pip install EduData")
+        return False
+    except Exception as e:
+        print(f"[ERROR] 下载失败: {e}")
+        print("\n[备选方案] 手动下载:")
+        print("1. 访问: https://www.kaggle.com/datasets/junyiacademy/learning-activity-public-dataset")
+        print("2. 下载 junyi_ProblemLog_original.csv 和 relationship_annotation_training.csv")
+        print(f"3. 放到目录: {os.path.join(project_root, 'data', 'junyi')}")
+        return False
+
+
 def build_concept_graph_prerequisite(n_concepts, prerequisite_file, concept_to_id):
     """
     使用先修关系构建概念图（Junyi特有，领域知识）
@@ -270,15 +296,50 @@ def process_junyi():
     print("Junyi数据集预处理（混合图方法）")
     print("="*50)
     
-    # 数据路径
-    data_dir = "data/junyi"
-    log_file = os.path.join(data_dir, "junyi_ProblemLog_original.csv")
-    prerequisite_file = os.path.join(data_dir, "relationship_annotation_training.csv")
+    # 数据路径（自动检测，支持多种可能的位置）
+    possible_data_dirs = [
+        os.path.join(project_root, "data", "junyi"),  # 标准位置
+        os.path.join(project_root, "data", "raw", "junyi"),  # EduData下载位置
+    ]
     
-    if not os.path.exists(log_file):
-        print(f"[ERROR] 数据文件不存在: {log_file}")
-        print("请先下载Junyi数据集")
-        return False
+    log_file = None
+    prerequisite_file = None
+    data_dir = None
+    
+    # 尝试找到数据文件
+    for dir_path in possible_data_dirs:
+        test_log = os.path.join(dir_path, "junyi_ProblemLog_original.csv")
+        test_prereq = os.path.join(dir_path, "relationship_annotation_training.csv")
+        if os.path.exists(test_log):
+            log_file = test_log
+            prerequisite_file = test_prereq
+            data_dir = dir_path
+            print(f"[OK] 找到数据文件: {data_dir}")
+            break
+    
+    if log_file is None or not os.path.exists(log_file):
+        print(f"[ERROR] 数据文件不存在")
+        print(f"当前工作目录: {os.getcwd()}")
+        print(f"项目根目录: {project_root}")
+        print(f"已检查的位置:")
+        for dir_path in possible_data_dirs:
+            print(f"  - {dir_path}")
+        print("\n正在尝试下载...")
+        if not download_junyi():
+            return False
+        
+        # 下载后再次检查
+        for dir_path in possible_data_dirs:
+            test_log = os.path.join(dir_path, "junyi_ProblemLog_original.csv")
+            if os.path.exists(test_log):
+                log_file = test_log
+                prerequisite_file = os.path.join(dir_path, "relationship_annotation_training.csv")
+                data_dir = dir_path
+                break
+        
+        if log_file is None or not os.path.exists(log_file):
+            print(f"[ERROR] 下载后仍未找到数据文件")
+            return False
     
     # 1. 读取数据
     print("\n1. 读取数据...")

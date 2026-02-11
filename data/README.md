@@ -28,7 +28,7 @@ data/
 
 ```bash
 # 自动下载并处理
-python data/process_assist09.py
+python data/process_assist09_v2.py
 
 # 输出文件
 data/assist09_processed.pkl
@@ -61,7 +61,7 @@ data/ednet_processed.pkl
 
 ```bash
 # 自动下载并处理
-python data/process_junyi.py
+python data/process_junyi_v2.py
 
 # 输出文件
 data/junyi_processed.pkl
