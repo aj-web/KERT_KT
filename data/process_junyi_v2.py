@@ -431,7 +431,7 @@ def process_junyi():
         w_prereq=0.4,              # 先修关系权重40%
         w_transition=0.6,          # 转移关系权重60%
         min_transition_count=5,    # 至少5次转移
-        top_k_neighbors=15         # 每个知识点最多15个邻居
+        top_k_neighbors=8          # 每个知识点最多8个邻居（降低以加速训练）
     )
     
     # 7. 构建交互序列
