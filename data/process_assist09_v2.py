@@ -332,7 +332,7 @@ def process_assist09():
     concept_graph = build_concept_graph_transition(
         df, n_concepts,
         min_transition_count=3,   # 至少3次转移才保留（去噪）
-        top_k_neighbors=10,       # 每个知识点最多10个邻居（防止过连接）
+        top_k_neighbors=6,        # 每个知识点最多6个邻居（小数据集，防止过拟合）
         time_window=None          # 不限制时间窗口（可选：86400秒=1天）
     )
     

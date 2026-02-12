@@ -325,11 +325,11 @@ def get_dataset_config(dataset_name):
             'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
             'lr_kt_finetune': 0.0005,  # 优化：相应降低微调学习率
             'batch_size': 64,          # 速度优化：增大batch size（32→64），加速约2倍
-            'dropout': 0.28,            # 优化：进一步增大dropout，防止过拟合
+            'dropout': 0.35,           # 优化：增大dropout防止密集图过拟合（0.28→0.35）
             'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
             'n_epochs': 50,            # KRD-KT-SL 监督学习版：只运行 Phase 1 (论文消融实验变体)
             'patience': 8,             # 修正：增加patience，给模型更多恢复时间（避免过早停止）
-            'l2_lambda': 1e-5,         # 降低：过强的L2可能限制模型表达能力
+            'l2_lambda': 5e-5,         # 增强：更强L2正则化防止密集图过拟合（1e-5→5e-5）
             'warmup_steps': 1800,      # 降低：约0.5个epoch完成Warmup（1800/3602≈0.5）
             'lr_decay_patience': 5,    # 增加：更保守的学习率衰减
             'lr_decay_factor': 0.5     # 新增：学习率衰减因子
