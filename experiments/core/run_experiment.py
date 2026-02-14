@@ -66,7 +66,7 @@ def create_data_loaders(dataset_info, batch_size=32, max_seq_len=200):
     # Windows下也启用多进程（2-4个worker），提速10-15%
     import platform
     num_workers = 2 if platform.system() == 'Windows' else 4
-    print(f"✅ 数据加载器使用 {num_workers} 个worker进程")
+    print(f"数据加载器使用 {num_workers} 个worker进程")
     
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,
@@ -187,18 +187,16 @@ def run_single_experiment(dataset_name, config=None, n_runs=5, mode='default'):
         model = model.to(device)
         print(f"Model moved to {device}")
         
-        # 禁用torch.compile（与AMP混合精度训练冲突）
-        # torch.compile在Windows + CUDA + AMP下有已知兼容性问题
-        # 优先保留AMP（30-50%提速）而非torch.compile（10-20%提速）
-        # if hasattr(torch, 'compile') and torch.cuda.is_available():
-        #     try:
-        #         model = torch.compile(model)
-        #         print(f"✅ torch.compile已启用 (预期提速10-20%)")
-        #     except Exception as e:
-        #         print(f"⚠️ torch.compile启用失败: {e}")
-        # else:
-        #     print(f"⚠️ torch.compile不可用（需要PyTorch 2.x）")
-        print(f"⚠️ torch.compile已禁用（与AMP混合精度训练冲突）")
+        # 启用torch.compile（PyTorch 2.x JIT编译，提速10-20%）
+        # 注意：已修复FP16参数污染问题，现在可以与AMP同时使用
+        if hasattr(torch, 'compile') and torch.cuda.is_available():
+            try:
+                model = torch.compile(model)
+                print(f"torch.compile已启用 (预期提速10-20%)")
+            except Exception as e:
+                print(f"torch.compile启用失败: {e}")
+        else:
+            print(f"torch.compile不可用（需要PyTorch 2.x）")
 
         # Create checkpoint and results directories
         checkpoint_dir = os.path.join(project_root, 'checkpoints', dataset_name)
@@ -318,10 +316,10 @@ def run_all_experiments(n_runs=None, mode='default'):
     if n_runs is None:
         if mode in ['full', 'sl']:
             n_runs = 5  # 主模型5次（论文要求）
-            print(f"✅ 主模型实验：运行 {n_runs} 次")
+            print(f"主模型实验：运行 {n_runs} 次")
         else:
             n_runs = 3  # 消融实验3次（学术界接受，节省40%时间）
-            print(f"✅ 消融实验：运行 {n_runs} 次（节省40%时间）")
+            print(f"消融实验：运行 {n_runs} 次（节省40%时间）")
     
     datasets = ['assist09', 'ednet', 'junyi']
     all_results = []

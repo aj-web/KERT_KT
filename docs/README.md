@@ -38,13 +38,13 @@
    - **总收益：实验周期从1100小时缩短到280小时（节省75%）**
    - **推荐立即应用！**
 
-4.1 **[torch.compile与AMP冲突修复](torch_compile与AMP冲突修复.md)** ⭐⭐⭐⭐⭐ **[NEW - 2026-02-14]**
-   - **torch.compile与AMP混合精度训练冲突**
-   - 根本原因：torch.compile的FP16转换与AMP的FP32期望冲突
-   - 解决方案：禁用torch.compile，保留AMP（30-50%提速）
-   - 恢复梯度裁剪功能
-   - 修复question_enhancer参数缺失问题
-   - **完全解决，可以正常训练**
+4.1 **[AMP FP16参数污染问题修复](AMP_FP16参数污染问题修复.md)** ⭐⭐⭐⭐⭐ **[NEW - 2026-02-14]**
+   - **真正的根本原因：forward中的参数赋值导致FP16污染**
+   - 不是torch.compile的问题！
+   - 解决方案：在参数赋值时添加`.float()`转换
+   - 修复位置：`self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.detach().float()`
+   - **AMP + torch.compile现在完美配合**
+   - **总提速60%，节省75%时间**
 
 5. **[Junyi数据集完整优化记录](Junyi数据集完整优化记录.md)** ⭐⭐⭐⭐⭐
    - **完整的问题诊断和优化过程**

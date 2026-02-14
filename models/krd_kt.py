@@ -279,7 +279,8 @@ class KRDKT(nn.Module):
                 enhanced_concepts = enhanced_concepts.mean(dim=0)  # [n_concepts, embed_dim]
             
             # 更新图模块的概念嵌入（临时）
-            self.graph_module.concept_embed.weight.data = enhanced_concepts.detach()
+            # 注意：必须转为float()以避免AMP的FP16污染参数
+            self.graph_module.concept_embed.weight.data = enhanced_concepts.detach().float()
         
         # 2. 三支决策图传播
         if self.neighborhood_extractor is not None and self.path_strength_calculator is not None:
@@ -297,7 +298,8 @@ class KRDKT(nn.Module):
             self.concept_embeddings = self.graph_module.concept_embed.weight
         
         # 3. 更新KT预测器的概念嵌入
-        self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.detach()
+        # 注意：必须转为float()以避免AMP的FP16污染参数
+        self.kt_predictor.concept_embed.weight.data = self.concept_embeddings.detach().float()
 
         # 4. KT预测
         predictions, hidden_states = self.kt_predictor(
