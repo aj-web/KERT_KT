@@ -383,11 +383,9 @@ class KRDKT(nn.Module):
         
         # 梯度裁剪（需要先unscale）
         # 注意：unscale_只能调用一次，之后step()会跳过unscale
-        # 临时禁用梯度裁剪以测试AMP兼容性
-        # TODO: 修复梯度裁剪与AMP的兼容性问题
-        # if hasattr(self, 'grad_clip') and self.grad_clip is not None and self.grad_clip > 0:
-        #     scaler.unscale_(self.kt_optimizer)
-        #     torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
+        if hasattr(self, 'grad_clip') and self.grad_clip is not None and self.grad_clip > 0:
+            scaler.unscale_(self.kt_optimizer)
+            torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
         
         scaler.step(self.kt_optimizer)
         scaler.update()

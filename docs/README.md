@@ -38,12 +38,13 @@
    - **总收益：实验周期从1100小时缩短到280小时（节省75%）**
    - **推荐立即应用！**
 
-4.1 **[AMP兼容性修复记录](AMP兼容性修复记录.md)** ⭐⭐⭐⭐ **[NEW - 2026-02-14]**
-   - **BCELoss与AMP不兼容问题修复**
-   - 将Sigmoid + BCELoss改为BCEWithLogitsLoss
-   - 修改评估函数以支持logits输出
-   - 完全兼容AMP混合精度训练
-   - 对模型性能无影响
+4.1 **[torch.compile与AMP冲突修复](torch_compile与AMP冲突修复.md)** ⭐⭐⭐⭐⭐ **[NEW - 2026-02-14]**
+   - **torch.compile与AMP混合精度训练冲突**
+   - 根本原因：torch.compile的FP16转换与AMP的FP32期望冲突
+   - 解决方案：禁用torch.compile，保留AMP（30-50%提速）
+   - 恢复梯度裁剪功能
+   - 修复question_enhancer参数缺失问题
+   - **完全解决，可以正常训练**
 
 5. **[Junyi数据集完整优化记录](Junyi数据集完整优化记录.md)** ⭐⭐⭐⭐⭐
    - **完整的问题诊断和优化过程**

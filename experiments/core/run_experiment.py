@@ -187,15 +187,18 @@ def run_single_experiment(dataset_name, config=None, n_runs=5, mode='default'):
         model = model.to(device)
         print(f"Model moved to {device}")
         
-        # 启用torch.compile（PyTorch 2.x JIT编译，提速10-20%）
-        if hasattr(torch, 'compile') and torch.cuda.is_available():
-            try:
-                model = torch.compile(model)
-                print(f"✅ torch.compile已启用 (预期提速10-20%)")
-            except Exception as e:
-                print(f"⚠️ torch.compile启用失败: {e}")
-        else:
-            print(f"⚠️ torch.compile不可用（需要PyTorch 2.x）")
+        # 禁用torch.compile（与AMP混合精度训练冲突）
+        # torch.compile在Windows + CUDA + AMP下有已知兼容性问题
+        # 优先保留AMP（30-50%提速）而非torch.compile（10-20%提速）
+        # if hasattr(torch, 'compile') and torch.cuda.is_available():
+        #     try:
+        #         model = torch.compile(model)
+        #         print(f"✅ torch.compile已启用 (预期提速10-20%)")
+        #     except Exception as e:
+        #         print(f"⚠️ torch.compile启用失败: {e}")
+        # else:
+        #     print(f"⚠️ torch.compile不可用（需要PyTorch 2.x）")
+        print(f"⚠️ torch.compile已禁用（与AMP混合精度训练冲突）")
 
         # Create checkpoint and results directories
         checkpoint_dir = os.path.join(project_root, 'checkpoints', dataset_name)
