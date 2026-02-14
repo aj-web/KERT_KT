@@ -776,9 +776,9 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     if use_amp and torch.cuda.is_available():
         # 使用新API（PyTorch 2.0+）
         scaler = torch.amp.GradScaler('cuda')
-        print(f"✅ AMP混合精度训练已启用 (预期提速30-50%)")
+        print(f"AMP混合精度训练已启用 (预期提速30-50%)")
     else:
-        print(f"⚠️ AMP混合精度训练未启用")
+        print(f"⚠AMP混合精度训练未启用")
     
     # 初始化图模块（邻居提取、路径强度计算等）
     if model.neighborhood_extractor is None:
