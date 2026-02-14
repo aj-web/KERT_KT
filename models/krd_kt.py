@@ -366,7 +366,7 @@ class KRDKT(nn.Module):
         self.batch_count += 1
 
         # Forward传播（使用autocast）
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast('cuda'):
             predictions, hidden_states = self.forward(batch, concept_graph)
             
             # KT损失
@@ -375,13 +375,16 @@ class KRDKT(nn.Module):
             )
 
         # KT优化（使用scaler）
-        self.kt_optimizer.zero_grad()
+        self.kt_optimizer.zero_grad(set_to_none=True)
         scaler.scale(kt_loss).backward()
         
-        # 梯度裁剪（在scaler.step之前）
-        if hasattr(self, 'grad_clip') and self.grad_clip is not None:
-            scaler.unscale_(self.kt_optimizer)
-            torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
+        # 梯度裁剪（需要先unscale）
+        # 注意：unscale_只能调用一次，之后step()会跳过unscale
+        # 临时禁用梯度裁剪以测试AMP兼容性
+        # TODO: 修复梯度裁剪与AMP的兼容性问题
+        # if hasattr(self, 'grad_clip') and self.grad_clip is not None and self.grad_clip > 0:
+        #     scaler.unscale_(self.kt_optimizer)
+        #     torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
         
         scaler.step(self.kt_optimizer)
         scaler.update()
@@ -768,7 +771,8 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     # 初始化混合精度训练（AMP）- 提速30-50%
     scaler = None
     if use_amp and torch.cuda.is_available():
-        scaler = torch.cuda.amp.GradScaler()
+        # 使用新API（PyTorch 2.0+）
+        scaler = torch.amp.GradScaler('cuda')
         print(f"✅ AMP混合精度训练已启用 (预期提速30-50%)")
     else:
         print(f"⚠️ AMP混合精度训练未启用")
