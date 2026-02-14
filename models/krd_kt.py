@@ -203,7 +203,9 @@ class KRDKT(nn.Module):
         # For RL reward calculation: cache validation AUC
         self.last_val_auc = 0.0
         self.val_loader = None
-        self.eval_frequency = 1000  # Evaluate every N batches (优化：10 → 1000，大幅减少验证频率)
+        self.eval_frequency = 100  # 修复：从1000降到100，增加奖励信号密度
+        self.val_sample_size = 500  # 快速评估使用的样本数
+        self.auc_history = []  # 记录AUC历史，用于估计改进趋势
         self.batch_count = 0
         self.concept_embeddings_update_frequency = 50  # 优化：每N个batch更新一次concept_embeddings（10 → 50，减少计算）
         self._concept_graph_hash = None  # 用于检测concept_graph是否变化
@@ -240,25 +242,27 @@ class KRDKT(nn.Module):
         normalized = F.normalize(concept_embeds, p=2, dim=-1)
         self.similarity_matrix = torch.matmul(normalized, normalized.T)
 
-    def forward(self, batch, concept_graph, use_question_enhancement=True):
+    def forward(self, batch, concept_graph, use_question_enhancement=False):
         """
         前向传播（集成所有新模块）
         
         流程：
-        1. （可选）题目增强
+        1. （已禁用）题目增强 - 由于batch平均破坏了题目特异性，已禁用
         2. 三支决策图传播（使用预计算的邻居和路径强度）
         3. KT预测
 
         Args:
             batch: batch data dictionary
             concept_graph: concept adjacency matrix [n_concepts, n_concepts]
-            use_question_enhancement: 是否使用题目增强
+            use_question_enhancement: 是否使用题目增强（默认False，已禁用）
 
         Returns:
             predictions: predicted probabilities
             hidden_states: LSTM hidden states
         """
-        # 1. 题目增强（可选）
+        # 1. 题目增强（已禁用）
+        # 原因：batch平均破坏了题目特异性，违背论文设计
+        # 核心创新是三支决策图传播，题目增强不是必需的
         if use_question_enhancement and 'target_question' in batch:
             # 获取目标题目的嵌入
             target_q_embed = self.kt_predictor.question_embed(batch['target_question'])
@@ -267,7 +271,7 @@ class KRDKT(nn.Module):
             concept_embeds = self.graph_module.concept_embed.weight
             enhanced_concepts = self.question_enhancer(target_q_embed, concept_embeds)
             
-            # 如果是batch，取平均（或使用第一个）
+            # 如果是batch，取平均（问题：破坏了题目特异性）
             if enhanced_concepts.dim() == 3:  # [batch_size, n_concepts, embed_dim]
                 enhanced_concepts = enhanced_concepts.mean(dim=0)  # [n_concepts, embed_dim]
             
@@ -351,6 +355,61 @@ class KRDKT(nn.Module):
         """Set validation loader for reward calculation"""
         self.val_loader = val_loader
 
+    def _quick_eval_auc(self, val_loader, concept_graph, n_samples=500):
+        """
+        快速评估验证集AUC（使用小批量样本）
+        
+        用于RL训练中的奖励计算，避免每次都评估整个验证集。
+        
+        Args:
+            val_loader: 验证集data loader
+            concept_graph: 概念图邻接矩阵
+            n_samples: 使用的样本数（默认500，约占验证集的1%）
+        
+        Returns:
+            auc: 估计的AUC值
+        """
+        self.eval()
+        all_preds = []
+        all_labels = []
+        device = concept_graph.device
+        
+        with torch.no_grad():
+            sample_count = 0
+            for batch in val_loader:
+                if sample_count >= n_samples:
+                    break
+                
+                # 移动batch到设备
+                batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
+                        for k, v in batch.items()}
+                
+                # 前向传播
+                predictions, _ = self.forward(batch, concept_graph)
+                
+                # 收集预测和标签
+                all_preds.append(predictions.cpu())
+                all_labels.append(batch['labels'].cpu())
+                
+                sample_count += predictions.size(0)
+        
+        # 计算AUC
+        if len(all_preds) > 0:
+            all_preds = torch.cat(all_preds).numpy()
+            all_labels = torch.cat(all_labels).numpy()
+            
+            from sklearn.metrics import roc_auc_score
+            try:
+                auc = roc_auc_score(all_labels, all_preds)
+            except:
+                # 如果计算失败（例如只有一个类别），返回随机猜测的AUC
+                auc = 0.5
+        else:
+            auc = 0.5
+        
+        self.train()
+        return auc
+
     def _rl_train_step(self, batch, hidden_states, concept_graph, kt_loss):
         """
         Reinforcement learning training step (论文3.4.1节)
@@ -404,17 +463,33 @@ class KRDKT(nn.Module):
         self.graph_module.update_thresholds(avg_alpha, avg_beta)
         self.current_thresholds = (avg_alpha, avg_beta)
 
-        # Compute rewards (论文3.4.1节：使用真实验证集AUC)
-        # 优化策略：大幅降低验证频率，使用缓存的AUC改进值
-        # 只在每个epoch结束时才进行完整验证（在train_krd_kt中）
-        # 训练过程中使用基于loss的代理奖励
+        # ===== 修复：计算真实的AUC改进奖励（论文3.4.1节） =====
         if self.val_loader is not None and self.batch_count % self.eval_frequency == 0:
-            # 使用小批量验证样本快速估计（而非整个验证集）
-            # 这里简化为使用训练loss作为代理指标
-            auc_improvement = -kt_loss.item() * 0.1  # 负loss作为奖励代理
+            # 使用小批量验证集快速估计AUC
+            current_val_auc = self._quick_eval_auc(
+                self.val_loader, concept_graph, n_samples=self.val_sample_size
+            )
+            
+            # 计算AUC改进（论文公式3.16）
+            auc_improvement = current_val_auc - self.last_val_auc
+            
+            # 更新缓存
+            self.last_val_auc = current_val_auc
+            self.auc_history.append(current_val_auc)
+            
+            # 打印调试信息
+            if self.batch_count % (self.eval_frequency * 10) == 0:
+                print(f"  [RL Reward] Batch {self.batch_count}: "
+                      f"Val AUC={current_val_auc:.4f}, "
+                      f"Improvement={auc_improvement:+.4f}")
         else:
-            # Use cached improvement
-            auc_improvement = 0.0
+            # 使用最近的AUC改进趋势作为估计
+            if len(self.auc_history) >= 2:
+                # 使用最近的改进趋势
+                auc_improvement = self.auc_history[-1] - self.auc_history[-2]
+            else:
+                # 如果还没有历史记录，使用0
+                auc_improvement = 0.0
 
         # Compute rewards for each sample in batch
         rewards = []
