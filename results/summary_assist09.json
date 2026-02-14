@@ -1,0 +1,42 @@
+{
+  "dataset": "assist09",
+  "timestamp": "2026-02-13 17:03:16",
+  "models": {
+    "KRD-KT-SL": {
+      "auc": 0.7822,
+      "acc": 0.7356,
+      "source": "real"
+    },
+    "KRD-KT": {
+      "auc": 0.8156900356417592,
+      "acc": 0.7600623033315049,
+      "source": "mock"
+    },
+    "KRD-KT w/o 3WD": {
+      "auc": 0.7172778198325451,
+      "acc": 0.6878511127674678,
+      "source": "mock"
+    },
+    "KRD-KT w/o Multi-order": {
+      "auc": 0.7535883856723004,
+      "acc": 0.7076456019666196,
+      "source": "mock"
+    },
+    "KRD-KT w/o Diff-Msg": {
+      "auc": 0.7743468391794368,
+      "acc": 0.699357321649918,
+      "source": "mock"
+    },
+    "KRD-KT w/o Decay": {
+      "auc": 0.7628042255027272,
+      "acc": 0.718765143589295,
+      "source": "mock"
+    },
+    "KRD-KT w/o Neg-Suppress": {
+      "auc": 0.7814133787680726,
+      "acc": 0.7386168635355235,
+      "source": "mock"
+    }
+  },
+  "source": "mock_data"
+}

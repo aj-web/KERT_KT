@@ -1,0 +1,10 @@
+{
+  "param_name": "lambda_decay",
+  "dataset": "assist09",
+  "timestamp": "2026-02-13 17:52:33",
+  "n_runs": 1,
+  "param_values": [
+    0.1
+  ],
+  "results": []
+}

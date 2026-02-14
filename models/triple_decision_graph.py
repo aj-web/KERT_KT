@@ -33,7 +33,11 @@ class TripleDecisionGraphComplete(nn.Module):
     def __init__(self, n_concepts, embed_dim, n_layers=2,
                  alpha=0.7, beta=0.3,
                  max_k=2, distance_decay_lambda=0.5,
-                 dropout=0.1):
+                 dropout=0.1,
+                 # 消融实验参数
+                 use_triple_decision=True,
+                 use_diff_msg=True,
+                 use_neg_suppress=True):
         """
         Args:
             n_concepts: 知识点数量
@@ -42,8 +46,13 @@ class TripleDecisionGraphComplete(nn.Module):
             alpha: 正域阈值（论文：0.7）
             beta: 负域阈值（论文：0.3）
             max_k: 最大阶数（论文：2，表示1阶和2阶）
-            distance_decay_lambda: 距离衰减系数 λ
+            distance_decay_lambda: 距离衰减系数 λ (w/o Decay时设为0.0)
             dropout: Dropout率
+            
+            # 消融实验参数
+            use_triple_decision: 是否使用三支决策 (False时所有邻居统一处理)
+            use_diff_msg: 是否使用差异化消息传递 (False时所有区域使用相同MLP)
+            use_neg_suppress: 是否使用负域抑制 (False时负域权重不衰减)
         """
         super().__init__()
         
@@ -54,6 +63,11 @@ class TripleDecisionGraphComplete(nn.Module):
         self.beta = beta
         self.max_k = max_k
         self.lambda_decay = distance_decay_lambda
+        
+        # 消融实验配置
+        self.use_triple_decision = use_triple_decision
+        self.use_diff_msg = use_diff_msg
+        self.use_neg_suppress = use_neg_suppress
         
         # 概念嵌入
         self.concept_embed = nn.Embedding(n_concepts, embed_dim)
@@ -184,11 +198,16 @@ class TripleDecisionGraphComplete(nn.Module):
         """
         聚合单个节点的信息（实现论文公式0-17~0-21的完整流程）
         
+        支持消融实验：
+        - use_triple_decision=False: 不划分三支决策区域，所有邻居统一处理
+        - use_diff_msg=False: 所有区域使用相同的消息传递函数
+        - use_neg_suppress=False: 负域不进行抑制
+        
         流程：
         1. 对每个阶数k（1和2）：
            a. 获取k阶邻居
-           b. 根据路径强度划分三支决策区域
-           c. 对每个区域进行差异化消息传递
+           b. 根据路径强度划分三支决策区域（如果启用）
+           c. 对每个区域进行差异化消息传递（如果启用）
            d. 区域内聚合（Mean）
         2. 区域间融合（W_r）
         3. 跨阶融合（W_h）
@@ -222,7 +241,18 @@ class TripleDecisionGraphComplete(nn.Module):
             # 2. 获取k跳路径强度
             neighbor_strengths = strength_matrices[k][concept_id, k_neighbors]  # [n_neighbors]
             
-            # 3. 三支决策划分（公式0-11, 0-12）
+            # === 消融实验：w/o Three-way Decision ===
+            if not self.use_triple_decision:
+                # 所有邻居统一处理，不划分区域
+                k_neighbors_tensor = torch.tensor(k_neighbors, dtype=torch.long, device=device)
+                m_k = self._message_passing_region(
+                    concept_id, k_neighbors, k, 'unified',  # 使用unified类型
+                    node_embeds, similarity_matrix
+                )
+                m_k_list.append(m_k)
+                continue
+            
+            # === 正常模式：三支决策划分（公式0-11, 0-12）===
             pos_mask = neighbor_strengths >= self.alpha
             neg_mask = neighbor_strengths <= self.beta
             bnd_mask = (neighbor_strengths > self.beta) & (neighbor_strengths < self.alpha)
@@ -263,6 +293,10 @@ class TripleDecisionGraphComplete(nn.Module):
         """
         对指定区域进行差异化消息传递
         
+        支持消融实验：
+        - use_diff_msg=False: 所有区域使用相同MLP (使用pos的MLP)
+        - use_neg_suppress=False: 负域不抑制 (gamma_neg=0)
+        
         论文公式0-13~0-16：
         - 正域：m_j→i^(pos,k,l) = σ(MLP_pos([h_i || h_j || e_ij])) * ω(k)
         - 边界域：m_j→i^(bnd,k,l) = σ(MLP_bnd([h_i || h_j || e_ij])) * ω(k)
@@ -270,9 +304,9 @@ class TripleDecisionGraphComplete(nn.Module):
         
         Args:
             source_id: 源节点ID
-            neighbor_ids: 区域内邻居ID列表 (tensor)
+            neighbor_ids: 区域内邻居ID列表
             k: 阶数
-            region_type: 'pos', 'bnd', 或 'neg'
+            region_type: 'pos', 'bnd', 'neg', 或 'unified'
             node_embeds: [n_concepts, embed_dim]
             similarity_matrix: [n_concepts, n_concepts]
         
@@ -299,23 +333,31 @@ class TripleDecisionGraphComplete(nn.Module):
             # 拼接 [h_i || h_j || e_ij]
             concat = torch.cat([h_i, h_j, e_ij_vec], dim=-1)  # [3*embed_dim]
             
-            # 选择对应的MLP
-            if region_type == 'pos':
+            # === 消融实验：w/o Diff-Msg ===
+            if not self.use_diff_msg or region_type == 'unified':
+                # 所有区域使用相同的MLP（使用pos的MLP）
                 mlp = self.mlp_pos[str(k)]
-            elif region_type == 'bnd':
-                mlp = self.mlp_bnd[str(k)]
-            else:  # neg
-                mlp = self.mlp_neg[str(k)]
+            else:
+                # 正常模式：差异化消息传递
+                if region_type == 'pos':
+                    mlp = self.mlp_pos[str(k)]
+                elif region_type == 'bnd':
+                    mlp = self.mlp_bnd[str(k)]
+                else:  # neg
+                    mlp = self.mlp_neg[str(k)]
             
             # MLP处理
             message = mlp(concat)  # [embed_dim]
             
             # 距离衰减 ω(k) = λ^(k-1)（公式0-10）
-            decay_weight = self.lambda_decay ** (k - 1)
+            # 注意：lambda_decay=0时，ω(k)=0^(k-1)，k=1时为1，k>1时为0
+            # 这实际上等价于没有衰减（所有阶数权重相同）
+            decay_weight = self.lambda_decay ** (k - 1) if self.lambda_decay > 0 else 1.0
             message = message * decay_weight
             
+            # === 消融实验：w/o Neg-Suppress ===
             # 负域特殊处理（公式0-16）
-            if region_type == 'neg':
+            if region_type == 'neg' and self.use_neg_suppress:
                 # 限制γ_neg在[0,1]范围
                 gamma = torch.clamp(self.gamma_neg, 0.0, 1.0)
                 message = -gamma * message

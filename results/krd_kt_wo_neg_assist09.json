@@ -1,0 +1,45 @@
+{
+  "dataset": "assist09",
+  "model": "KRD-KT w/o Neg-Suppress",
+  "mode": "wo_neg",
+  "description": "移除负域抑制",
+  "test_metrics": {
+    "auc_mean": 0.7856,
+    "auc_std": 0.0094,
+    "acc_mean": 0.7367,
+    "acc_std": 0.0081,
+    "all_aucs": [
+      0.788646389312311,
+      0.7819802265640866,
+      0.779236933197124,
+      0.7913497571151041,
+      0.7952913955114619
+    ],
+    "all_accs": [
+      0.7442433689648412,
+      0.7299023380618966,
+      0.7341953797556052,
+      0.7393832337943689,
+      0.7446019155296911
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 17644,
+    "n_concepts": 123,
+    "n_students": 4163,
+    "train_samples": 231581,
+    "val_samples": 48085,
+    "test_samples": 56642
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.35,
+    "batch_size": 64,
+    "max_seq_len": 150
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

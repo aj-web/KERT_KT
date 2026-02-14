@@ -13,5 +13,6 @@ gen
 *.pyc
 /junyi/*
 /data/raw/*
-/__pycache__/*
+*/__pycache__/*
 *.pyc
+*/__pycache__/

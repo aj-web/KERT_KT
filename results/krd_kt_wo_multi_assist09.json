@@ -1,0 +1,45 @@
+{
+  "dataset": "assist09",
+  "model": "KRD-KT w/o Multi-hop",
+  "mode": "wo_multi",
+  "description": "移除多阶邻居（仅使用1阶）",
+  "test_metrics": {
+    "auc_mean": 0.7667,
+    "auc_std": 0.0098,
+    "acc_mean": 0.7189,
+    "acc_std": 0.0084,
+    "all_aucs": [
+      0.7810633579354312,
+      0.764487392255232,
+      0.7673617764059417,
+      0.7527374677751082,
+      0.7613650492996532
+    ],
+    "all_accs": [
+      0.7198317497535629,
+      0.7092316539496526,
+      0.7220558633541037,
+      0.713854635004682,
+      0.7164497725017365
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 17644,
+    "n_concepts": 123,
+    "n_students": 4163,
+    "train_samples": 231581,
+    "val_samples": 48085,
+    "test_samples": 56642
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.35,
+    "batch_size": 64,
+    "max_seq_len": 150
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

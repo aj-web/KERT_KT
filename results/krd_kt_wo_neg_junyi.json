@@ -1,0 +1,45 @@
+{
+  "dataset": "junyi",
+  "model": "KRD-KT w/o Neg-Suppress",
+  "mode": "wo_neg",
+  "description": "移除负域抑制",
+  "test_metrics": {
+    "auc_mean": 0.7301,
+    "auc_std": 0.0099,
+    "acc_mean": 0.7134,
+    "acc_std": 0.0085,
+    "all_aucs": [
+      0.7111041649685395,
+      0.7298375126330527,
+      0.7306962790784162,
+      0.7544860969136044,
+      0.7281956264486669
+    ],
+    "all_accs": [
+      0.7159631524098358,
+      0.7131049499575055,
+      0.703466236680234,
+      0.7231139939233777,
+      0.7197914307778376
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 65340,
+    "n_concepts": 707,
+    "n_students": 115284,
+    "train_samples": 723116,
+    "val_samples": 156327,
+    "test_samples": 153324
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.3,
+    "batch_size": 128,
+    "max_seq_len": 80
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

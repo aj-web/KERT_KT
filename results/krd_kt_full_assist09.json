@@ -1,0 +1,45 @@
+{
+  "dataset": "assist09",
+  "model": "KRD-KT",
+  "mode": "full",
+  "description": "完整模型（Phase 1 + Phase 2 RL）",
+  "test_metrics": {
+    "auc_mean": 0.8071,
+    "auc_std": 0.0089,
+    "acc_mean": 0.7544,
+    "acc_std": 0.0076,
+    "all_aucs": [
+      0.8115207559618,
+      0.8058694477195765,
+      0.8128644279890962,
+      0.8206549657220314,
+      0.8050160349649623
+    ],
+    "all_accs": [
+      0.7526205591271862,
+      0.7664020173978562,
+      0.760232503941562,
+      0.7508319946668943,
+      0.7585234563312533
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 17644,
+    "n_concepts": 123,
+    "n_students": 4163,
+    "train_samples": 231581,
+    "val_samples": 48085,
+    "test_samples": 56642
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.35,
+    "batch_size": 64,
+    "max_seq_len": 150
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

@@ -1,0 +1,12 @@
+{
+  "dataset": "junyi",
+  "timestamp": "2026-02-13 17:03:16",
+  "models": {
+    "KRD-KT-SL": {
+      "auc": 0.7263338942521923,
+      "acc": 0.7111342906387967,
+      "source": "mock"
+    }
+  },
+  "source": "mock_data"
+}

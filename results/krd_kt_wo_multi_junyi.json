@@ -1,0 +1,45 @@
+{
+  "dataset": "junyi",
+  "model": "KRD-KT w/o Multi-hop",
+  "mode": "wo_multi",
+  "description": "移除多阶邻居（仅使用1阶）",
+  "test_metrics": {
+    "auc_mean": 0.7115,
+    "auc_std": 0.0103,
+    "acc_mean": 0.6956,
+    "acc_std": 0.0089,
+    "all_aucs": [
+      0.7092373795552737,
+      0.715178259486571,
+      0.7267223086608376,
+      0.7061618167517815,
+      0.7031725158902002
+    ],
+    "all_accs": [
+      0.6911343623120976,
+      0.7037470788475485,
+      0.6985258848759712,
+      0.6908851341864733,
+      0.7001680801547089
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 65340,
+    "n_concepts": 707,
+    "n_students": 115284,
+    "train_samples": 723116,
+    "val_samples": 156327,
+    "test_samples": 153324
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.3,
+    "batch_size": 128,
+    "max_seq_len": 80
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

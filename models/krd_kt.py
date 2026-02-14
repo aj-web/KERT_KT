@@ -90,7 +90,10 @@ class KRDKT(nn.Module):
     def __init__(self, n_questions, n_concepts, embed_dim=128, hidden_dim=256,
                  n_layers=2, lstm_layers=2, alpha=0.7, beta=0.3, lambda_decay=0.1,
                  gamma=0.99, lr_kt=1e-3, lr_rl=1e-4, lambda_rl=0.1, 
-                 l2_lambda=1e-5, dropout=0.2, grad_clip=None):
+                 l2_lambda=1e-5, dropout=0.2, grad_clip=None,
+                 # 消融实验配置参数 (新增)
+                 use_triple_decision=True, max_k=2, use_diff_msg=True, 
+                 use_neg_suppress=True):
         """
         Initialize KRD-KT model
 
@@ -102,13 +105,20 @@ class KRDKT(nn.Module):
             n_layers: graph propagation layers
             lstm_layers: number of LSTM layers
             alpha, beta: initial triple decision thresholds
-            lambda_decay: negative region decay factor
+            lambda_decay: negative region decay factor (w/o Decay时设为0.0)
             gamma: RL discount factor
             lr_kt: KT learning rate
             lr_rl: RL learning rate
             lambda_rl: RL loss weight
             l2_lambda: L2 regularization coefficient
             dropout: dropout rate
+            grad_clip: gradient clipping threshold
+            
+            # 消融实验参数 (Ablation Study)
+            use_triple_decision: 是否使用三支决策 (False时退化为标准GNN)
+            max_k: 最大邻域阶数 (w/o Multi-order时设为1)
+            use_diff_msg: 是否使用差异化消息传递 (False时统一处理)
+            use_neg_suppress: 是否使用负域抑制 (False时不抑制负域)
         """
         super(KRDKT, self).__init__()
 
@@ -120,6 +130,13 @@ class KRDKT(nn.Module):
         self.lstm_layers = lstm_layers
         self.alpha = alpha
         self.beta = beta
+        
+        # 消融实验配置 (存储以便传递给子模块)
+        self.use_triple_decision = use_triple_decision
+        self.max_k = max_k
+        self.use_diff_msg = use_diff_msg
+        self.use_neg_suppress = use_neg_suppress
+        self.lambda_decay = lambda_decay
 
         # 题目增强模块（新增）
         self.question_enhancer = QuestionEnhancement(embed_dim, dropout=dropout)
@@ -131,12 +148,17 @@ class KRDKT(nn.Module):
             n_layers=n_layers,
             alpha=alpha,
             beta=beta,
-            max_k=2,
+            max_k=max_k,  # 传递max_k参数
             distance_decay_lambda=lambda_decay,
-            dropout=dropout
+            dropout=dropout,
+            # 传递消融实验参数
+            use_triple_decision=use_triple_decision,
+            use_diff_msg=use_diff_msg,
+            use_neg_suppress=use_neg_suppress
         )
 
         # 邻居提取器和路径强度计算器（训练前初始化）
+        # 使用max_k参数
         self.neighborhood_extractor = None
         self.path_strength_calculator = None
         
@@ -195,10 +217,10 @@ class KRDKT(nn.Module):
         """
         print("初始化图模块...")
         
-        # 1. 初始化邻居提取器
-        print("  - 提取k阶邻居...")
+        # 1. 初始化邻居提取器（使用配置的max_k）
+        print(f"  - 提取k阶邻居 (max_k={self.max_k})...")
         self.neighborhood_extractor = NeighborhoodExtractor(
-            concept_graph, max_k=2, directed=False
+            concept_graph, max_k=self.max_k, directed=False
         )
         
         # 2. 初始化路径强度计算器

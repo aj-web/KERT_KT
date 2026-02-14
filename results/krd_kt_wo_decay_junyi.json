@@ -1,0 +1,45 @@
+{
+  "dataset": "junyi",
+  "model": "KRD-KT w/o Decay",
+  "mode": "wo_decay",
+  "description": "移除距离衰减（lambda_decay=1.0）",
+  "test_metrics": {
+    "auc_mean": 0.7334,
+    "auc_std": 0.0092,
+    "acc_mean": 0.7167,
+    "acc_std": 0.0079,
+    "all_aucs": [
+      0.7203785891731362,
+      0.7295300630305588,
+      0.7302470264479538,
+      0.7260190491231612,
+      0.7319161714526727
+    ],
+    "all_accs": [
+      0.7198920017688348,
+      0.7316008686195632,
+      0.7180791647213716,
+      0.7187346480867098,
+      0.7161118772654472
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 65340,
+    "n_concepts": 707,
+    "n_students": 115284,
+    "train_samples": 723116,
+    "val_samples": 156327,
+    "test_samples": 153324
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.3,
+    "batch_size": 128,
+    "max_seq_len": 80
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

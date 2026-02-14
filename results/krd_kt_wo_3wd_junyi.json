@@ -1,0 +1,45 @@
+{
+  "dataset": "junyi",
+  "model": "KRD-KT w/o 3WD",
+  "mode": "wo_3wd",
+  "description": "移除三支决策模块",
+  "test_metrics": {
+    "auc_mean": 0.6889,
+    "auc_std": 0.0118,
+    "acc_mean": 0.6734,
+    "acc_std": 0.0101,
+    "all_aucs": [
+      0.6931644681449992,
+      0.7070488314842984,
+      0.6884772527385026,
+      0.7073627951386052,
+      0.657987007771741
+    ],
+    "all_accs": [
+      0.6817012152941898,
+      0.6742791753892056,
+      0.6703800257602948,
+      0.6743267838430086,
+      0.653325553962531
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 65340,
+    "n_concepts": 707,
+    "n_students": 115284,
+    "train_samples": 723116,
+    "val_samples": 156327,
+    "test_samples": 153324
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.3,
+    "batch_size": 128,
+    "max_seq_len": 80
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

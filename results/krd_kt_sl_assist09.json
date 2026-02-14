@@ -1,0 +1,43 @@
+{
+  "dataset": "assist09",
+  "model": "KRD-KT-SL",
+  "test_metrics": {
+    "auc_mean": 0.7821560102427094,
+    "auc_std": 0.032361728832914806,
+    "acc_mean": 0.7355909813092454,
+    "acc_std": 0.025617238519984365,
+    "all_aucs": [
+      0.7870484716918874,
+      0.8146193810462452,
+      0.7769395568067954,
+      0.7235720901550298,
+      0.8086005515135899
+    ],
+    "all_accs": [
+      0.7337772461931199,
+      0.7673206348072906,
+      0.7444525768962993,
+      0.6893621579163468,
+      0.7430422907331703
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 17644,
+    "n_concepts": 123,
+    "n_students": 4163,
+    "train_samples": 231581,
+    "val_samples": 48085,
+    "test_samples": 56642
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.35,
+    "batch_size": 64,
+    "max_seq_len": 150
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 13:10:14",
+  "source": "evaluated_from_checkpoints"
+}

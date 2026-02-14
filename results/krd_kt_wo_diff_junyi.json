@@ -1,0 +1,45 @@
+{
+  "dataset": "junyi",
+  "model": "KRD-KT w/o Diff-Msg",
+  "mode": "wo_diff",
+  "description": "移除差分消息传递",
+  "test_metrics": {
+    "auc_mean": 0.7263,
+    "auc_std": 0.0096,
+    "acc_mean": 0.7089,
+    "acc_std": 0.0083,
+    "all_aucs": [
+      0.7272319444737412,
+      0.7355989919091157,
+      0.7195602902987773,
+      0.7231544433926613,
+      0.7225357617299313
+    ],
+    "all_accs": [
+      0.6967528259305034,
+      0.711357798299636,
+      0.7110667587590931,
+      0.7089424416901324,
+      0.7069529267929863
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 65340,
+    "n_concepts": 707,
+    "n_students": 115284,
+    "train_samples": 723116,
+    "val_samples": 156327,
+    "test_samples": 153324
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.3,
+    "batch_size": 128,
+    "max_seq_len": 80
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}

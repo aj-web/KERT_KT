@@ -1,0 +1,45 @@
+{
+  "dataset": "assist09",
+  "model": "KRD-KT w/o Decay",
+  "mode": "wo_decay",
+  "description": "移除距离衰减（lambda_decay=1.0）",
+  "test_metrics": {
+    "auc_mean": 0.7889,
+    "auc_std": 0.0087,
+    "acc_mean": 0.7401,
+    "acc_std": 0.0074,
+    "all_aucs": [
+      0.7953246592459601,
+      0.7903909040463528,
+      0.7878938599432224,
+      0.7862803978483732,
+      0.7760368586838035
+    ],
+    "all_accs": [
+      0.7347731528578791,
+      0.7366912730948976,
+      0.74792270447402,
+      0.7426427753428066,
+      0.7270535028503158
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 17644,
+    "n_concepts": 123,
+    "n_students": 4163,
+    "train_samples": 231581,
+    "val_samples": 48085,
+    "test_samples": 56642
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "dropout": 0.35,
+    "batch_size": 64,
+    "max_seq_len": 150
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-13 17:23:45",
+  "source": "mock_data"
+}
