@@ -188,7 +188,10 @@ class KRDKT(nn.Module):
         self.kt_loss_fn = KTLoss(l2_lambda=l2_lambda)
 
         # Optimizers
-        kt_params = list(self.kt_predictor.parameters()) + list(self.graph_module.parameters())
+        # 包含所有KT相关的参数：predictor, graph_module, question_enhancer
+        kt_params = (list(self.kt_predictor.parameters()) + 
+                     list(self.graph_module.parameters()) + 
+                     list(self.question_enhancer.parameters()))
         self.kt_optimizer = optim.Adam(kt_params, lr=lr_kt)
 
         # Training hyperparameters
