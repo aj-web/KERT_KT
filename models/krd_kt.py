@@ -350,6 +350,54 @@ class KRDKT(nn.Module):
             losses.update(rl_losses)
 
         return losses
+    
+    def train_step_amp(self, batch, concept_graph, scaler):
+        """
+        使用AMP混合精度的训练步骤（提速30-50%）
+
+        Args:
+            batch: training batch
+            concept_graph: concept adjacency matrix
+            scaler: torch.cuda.amp.GradScaler
+
+        Returns:
+            losses: dictionary of loss values
+        """
+        self.batch_count += 1
+
+        # Forward传播（使用autocast）
+        with torch.cuda.amp.autocast():
+            predictions, hidden_states = self.forward(batch, concept_graph)
+            
+            # KT损失
+            kt_loss, bce_loss, l2_reg = self.kt_loss_fn(
+                predictions, batch['labels'], self.kt_predictor
+            )
+
+        # KT优化（使用scaler）
+        self.kt_optimizer.zero_grad()
+        scaler.scale(kt_loss).backward()
+        
+        # 梯度裁剪（在scaler.step之前）
+        if hasattr(self, 'grad_clip') and self.grad_clip is not None:
+            scaler.unscale_(self.kt_optimizer)
+            torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
+        
+        scaler.step(self.kt_optimizer)
+        scaler.update()
+
+        losses = {
+            'kt_loss': kt_loss.item(),
+            'bce_loss': bce_loss.item(),
+            'l2_reg': l2_reg.item()
+        }
+
+        # RL training (if enabled)
+        if self.rl_enabled:
+            rl_losses = self._rl_train_step_amp(batch, hidden_states, concept_graph, kt_loss, scaler)
+            losses.update(rl_losses)
+
+        return losses
 
     def set_val_loader(self, val_loader):
         """Set validation loader for reward calculation"""
@@ -537,6 +585,24 @@ class KRDKT(nn.Module):
             }
 
         return rl_losses
+    
+    def _rl_train_step_amp(self, batch, hidden_states, concept_graph, kt_loss, scaler):
+        """
+        使用AMP混合精度的强化学习训练步骤
+
+        Args:
+            batch: training batch
+            hidden_states: LSTM hidden states
+            concept_graph: concept adjacency matrix
+            kt_loss: KT loss tensor (用于计算代理奖励)
+            scaler: torch.cuda.amp.GradScaler
+
+        Returns:
+            rl_losses: RL loss values
+        """
+        # RL部分不使用autocast，因为涉及CPU操作和numpy转换
+        # 直接调用原始的_rl_train_step
+        return self._rl_train_step(batch, hidden_states, concept_graph, kt_loss)
 
     def _compute_region_stats(self, concept_graph, alpha, beta):
         """
@@ -670,7 +736,8 @@ class KRDKT(nn.Module):
 
 def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, patience=10, 
                   checkpoint_path='checkpoint_path', lr_kt_pretrain=0.001, lr_kt_finetune=0.0005,
-                  warmup_steps=0, lr_decay_patience=None, lr_decay_factor=0.5, min_lr=1e-5):
+                  warmup_steps=0, lr_decay_patience=None, lr_decay_factor=0.5, min_lr=1e-5,
+                  use_amp=True, validate_every_n_epochs=1):
     """
     Complete training pipeline for KER-KT (论文3.6.2节：两阶段训练策略)
 
@@ -688,9 +755,19 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
         lr_decay_patience: 学习率衰减patience（None表示不使用衰减）
         lr_decay_factor: 学习率衰减因子（标准值0.5）
         min_lr: 最小学习率限制（防止衰减到过小）
+        use_amp: 是否使用混合精度训练（AMP），默认True，可提速30-50%
+        validate_every_n_epochs: 验证频率（每N个epoch验证一次），默认1
     """
     # 获取设备
     device = concept_graph.device
+    
+    # 初始化混合精度训练（AMP）- 提速30-50%
+    scaler = None
+    if use_amp and torch.cuda.is_available():
+        scaler = torch.cuda.amp.GradScaler()
+        print(f"✅ AMP混合精度训练已启用 (预期提速30-50%)")
+    else:
+        print(f"⚠️ AMP混合精度训练未启用")
     
     # 初始化图模块（邻居提取、路径强度计算等）
     if model.neighborhood_extractor is None:
@@ -701,6 +778,7 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     
     best_auc = 0.0
     patience_counter = 0
+    last_val_metrics = None  # 用于缓存验证结果
     
     # 初始化学习率调度器（如果启用）
     scheduler = None
@@ -718,6 +796,7 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     print("Phase 1: KT Pre-training (Epochs 1-50)")
     print(f"  Learning rate: {lr_kt_pretrain}")
     print(f"  Patience: {patience}")
+    print(f"  Validation frequency: every {validate_every_n_epochs} epoch(s)")
     if warmup_steps > 0:
         print(f"  Warmup steps: {warmup_steps}")
     
@@ -744,25 +823,37 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
                 for param_group in model.kt_optimizer.param_groups:
                     param_group['lr'] = warmup_lr
             
-            losses = model.train_step(batch, concept_graph)
+            # 使用AMP混合精度训练
+            if scaler is not None:
+                losses = model.train_step_amp(batch, concept_graph, scaler)
+            else:
+                losses = model.train_step(batch, concept_graph)
             epoch_losses.append(losses)
             global_step += 1
 
         # Average losses
         avg_losses = {k: np.mean([loss[k] for loss in epoch_losses]) for k in epoch_losses[0].keys()}
 
-        # Validation
-        val_metrics = model.evaluate(val_loader, concept_graph)
+        # Validation（优化验证频率：前3个epoch每次验证，之后按设定频率）
+        should_validate = (epoch < 3) or (epoch % validate_every_n_epochs == 0)
+        if should_validate:
+            val_metrics = model.evaluate(val_loader, concept_graph)
+            last_val_metrics = val_metrics
+        else:
+            # 跳过验证，使用上次结果
+            val_metrics = last_val_metrics if last_val_metrics is not None else model.evaluate(val_loader, concept_graph)
         
         # 学习率调度器更新（基于验证AUC）
         if scheduler is not None:
             scheduler.step(val_metrics['auc'])
             current_lr = model.kt_optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['kt_loss']:.4f}, "
+            val_status = "✓" if should_validate else "↻"
+            print(f"Epoch {epoch+1} {val_status}: KT Loss: {avg_losses['kt_loss']:.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}, "
                   f"LR: {current_lr:.6f}")
         else:
-            print(f"Epoch {epoch+1}: KT Loss: {avg_losses['kt_loss']:.4f}, "
+            val_status = "✓" if should_validate else "↻"
+            print(f"Epoch {epoch+1} {val_status}: KT Loss: {avg_losses['kt_loss']:.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
 
         # Save best model
@@ -819,26 +910,38 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
             # 将batch数据移动到正确的设备
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
                     for k, v in batch.items()}
-            losses = model.train_step(batch, concept_graph)
+            
+            # 使用AMP混合精度训练
+            if scaler is not None:
+                losses = model.train_step_amp(batch, concept_graph, scaler)
+            else:
+                losses = model.train_step(batch, concept_graph)
             epoch_losses.append(losses)
 
         # Average losses
         avg_losses = {k: np.mean([loss[k] for loss in epoch_losses]) for k in epoch_losses[0].keys()}
 
-        # Validation
-        val_metrics = model.evaluate(val_loader, concept_graph)
+        # Validation（优化验证频率）
+        should_validate = (epoch < 53) or ((epoch - 50) % validate_every_n_epochs == 0)
+        if should_validate:
+            val_metrics = model.evaluate(val_loader, concept_graph)
+            last_val_metrics = val_metrics
+        else:
+            val_metrics = last_val_metrics if last_val_metrics is not None else model.evaluate(val_loader, concept_graph)
         
         # 学习率调度器更新（基于验证AUC）
         if scheduler is not None:
             scheduler.step(val_metrics['auc'])
             current_lr = model.kt_optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch+1}: KT Loss: {avg_losses.get('kt_loss', 0):.4f}, "
+            val_status = "✓" if should_validate else "↻"
+            print(f"Epoch {epoch+1} {val_status}: KT Loss: {avg_losses.get('kt_loss', 0):.4f}, "
                   f"Actor Loss: {avg_losses.get('actor_loss', 0):.4f}, "
                   f"Critic Loss: {avg_losses.get('critic_loss', 0):.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}, "
                   f"LR: {current_lr:.6f}")
         else:
-            print(f"Epoch {epoch+1}: KT Loss: {avg_losses.get('kt_loss', 0):.4f}, "
+            val_status = "✓" if should_validate else "↻"
+            print(f"Epoch {epoch+1} {val_status}: KT Loss: {avg_losses.get('kt_loss', 0):.4f}, "
                   f"Actor Loss: {avg_losses.get('actor_loss', 0):.4f}, "
                   f"Critic Loss: {avg_losses.get('critic_loss', 0):.4f}, "
                   f"Val AUC: {val_metrics['auc']:.4f}, Val ACC: {val_metrics['acc']:.4f}")
