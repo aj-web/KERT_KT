@@ -433,7 +433,9 @@ class KRDKT(nn.Module):
                         for k, v in batch.items()}
                 
                 # 前向传播
-                predictions, _ = self.forward(batch, concept_graph)
+                logits, _ = self.forward(batch, concept_graph)
+                # 应用sigmoid将logits转换为概率
+                predictions = torch.sigmoid(logits)
                 
                 # 收集预测和标签
                 all_preds.append(predictions.cpu())
@@ -692,7 +694,9 @@ class KRDKT(nn.Module):
                 # 将batch数据移动到正确的设备
                 batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
                         for k, v in batch.items()}
-                predictions, _ = self.forward(batch, concept_graph)
+                logits, _ = self.forward(batch, concept_graph)
+                # 应用sigmoid将logits转换为概率
+                predictions = torch.sigmoid(logits)
                 all_predictions.extend(predictions.cpu().numpy())
                 all_labels.extend(batch['labels'].cpu().numpy())
 

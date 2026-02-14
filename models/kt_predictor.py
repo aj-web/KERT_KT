@@ -68,8 +68,8 @@ class KTPredictor(nn.Module):
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim // 2, 1),
-            nn.Sigmoid()
+            nn.Linear(hidden_dim // 2, 1)
+            # 移除Sigmoid，改用BCEWithLogitsLoss（AMP安全）
         )
 
         # Initialize weights
@@ -226,7 +226,8 @@ class KTLoss(nn.Module):
         """
         super(KTLoss, self).__init__()
         self.l2_lambda = l2_lambda
-        self.bce_loss = nn.BCELoss()
+        # 使用BCEWithLogitsLoss（AMP安全，内部包含Sigmoid）
+        self.bce_loss = nn.BCEWithLogitsLoss()
 
     def forward(self, predictions, targets, model):
         """
@@ -235,7 +236,7 @@ class KTLoss(nn.Module):
         L_KT = BCE(y_pred, y_true) + λ_L2 * ||θ||²
 
         Args:
-            predictions: model predictions [batch_size]
+            predictions: model predictions (logits) [batch_size]
             targets: ground truth labels [batch_size]
             model: model instance for L2 regularization
 
@@ -244,7 +245,7 @@ class KTLoss(nn.Module):
             bce_loss: binary cross-entropy loss
             l2_reg: L2 regularization term
         """
-        # Binary cross-entropy loss
+        # Binary cross-entropy loss (BCEWithLogitsLoss接受logits，内部自动应用sigmoid)
         bce_loss = self.bce_loss(predictions, targets.float())
 
         # L2 regularization
