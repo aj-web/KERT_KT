@@ -595,7 +595,7 @@ class KRDKT(nn.Module):
 
 def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, patience=10, 
                   checkpoint_path='checkpoint_path', lr_kt_pretrain=0.001, lr_kt_finetune=0.0005,
-                  warmup_steps=0, lr_decay_patience=None, lr_decay_factor=0.5):
+                  warmup_steps=0, lr_decay_patience=None, lr_decay_factor=0.5, min_lr=1e-5):
     """
     Complete training pipeline for KER-KT (论文3.6.2节：两阶段训练策略)
 
@@ -604,14 +604,15 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
         train_loader: training data loader
         val_loader: validation data loader
         concept_graph: concept adjacency matrix
-        n_epochs: number of training epochs
-        patience: early stopping patience
+        n_epochs: number of training epochs (论文：Phase 1=50, Phase 2=50, 共100)
+        patience: early stopping patience (应用于两个阶段)
         checkpoint_path: path to save best model checkpoint
-        lr_kt_pretrain: 预训练阶段学习率 (论文表4.4)
-        lr_kt_finetune: 微调阶段学习率 (论文表4.4)
-        warmup_steps: 学习率Warmup步数（0表示不使用Warmup）
+        lr_kt_pretrain: 预训练阶段学习率 (论文表4.4: 0.001)
+        lr_kt_finetune: 微调阶段学习率 (论文表4.4: 0.0005)
+        warmup_steps: 学习率Warmup步数（0表示不使用，LSTM通常不需要）
         lr_decay_patience: 学习率衰减patience（None表示不使用衰减）
-        lr_decay_factor: 学习率衰减因子
+        lr_decay_factor: 学习率衰减因子（标准值0.5）
+        min_lr: 最小学习率限制（防止衰减到过小）
     """
     # 获取设备
     device = concept_graph.device
@@ -631,9 +632,9 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     if lr_decay_patience is not None:
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             model.kt_optimizer, mode='max', factor=lr_decay_factor,
-            patience=lr_decay_patience
+            patience=lr_decay_patience, min_lr=min_lr
         )
-        print(f"  Learning rate scheduler: ReduceLROnPlateau (patience={lr_decay_patience}, factor={lr_decay_factor})")
+        print(f"  Learning rate scheduler: ReduceLROnPlateau (patience={lr_decay_patience}, factor={lr_decay_factor}, min_lr={min_lr})")
     
     # 全局步数计数器（用于Warmup）
     global_step = 0
@@ -641,6 +642,7 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     # Phase 1: Knowledge Tracing Pre-training (Epochs 1-50, 论文3.6.2节)
     print("Phase 1: KT Pre-training (Epochs 1-50)")
     print(f"  Learning rate: {lr_kt_pretrain}")
+    print(f"  Patience: {patience}")
     if warmup_steps > 0:
         print(f"  Warmup steps: {warmup_steps}")
     
@@ -706,6 +708,7 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     print("="*50)
     print(f"  KT Learning rate: {lr_kt_finetune} (降低)")
     print(f"  RL Learning rate: {model.actor_critic.actor_optimizer.param_groups[0]['lr']}")
+    print(f"  Patience: {patience}")
     print(f"  Loading best Phase 1 model (AUC: {best_auc:.4f})")
     
     model.load_model(checkpoint_path)  # Load best KT model

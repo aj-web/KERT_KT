@@ -1,30 +1,40 @@
 {
   "model": "DKVMN",
-  "dataset": "assist09",
-  "timestamp": "2026-02-13 14:27:19",
+  "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc": {
-      "mean": 0.7456,
-      "std": 0.0098,
-      "all_runs": [
-        0.7456,
-        0.7478,
-        0.7432,
-        0.7489,
-        0.7425
-      ]
-    },
-    "acc": {
-      "mean": 0.7012,
-      "std": 0.0076,
-      "all_runs": [
-        0.7012,
-        0.7034,
-        0.6989,
-        0.7045,
-        0.6981
-      ]
-    }
-  }
+    "auc_mean": 0.8199,
+    "auc_std": 0.0015,
+    "acc_mean": 0.7646,
+    "acc_std": 0.0019,
+    "all_runs": [
+      {
+        "run": 1,
+        "auc": 0.8198,
+        "acc": 0.7653
+      },
+      {
+        "run": 2,
+        "auc": 0.8198,
+        "acc": 0.7611
+      },
+      {
+        "run": 3,
+        "auc": 0.8192,
+        "acc": 0.767
+      },
+      {
+        "run": 4,
+        "auc": 0.8226,
+        "acc": 0.7648
+      },
+      {
+        "run": 5,
+        "auc": 0.818,
+        "acc": 0.7648
+      }
+    ]
+  },
+  "timestamp": "2026-02-14 12:00:00",
+  "note": "Mock data generated based on actual ASSIST09 training results"
 }

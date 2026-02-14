@@ -197,17 +197,18 @@ def run_single_experiment(dataset_name, config=None, n_runs=5, mode='default'):
         # 新的命名规则: krd_kt_sl_run1_assist09.pt
         best_model_path = os.path.join(checkpoint_dir, f'{model_variant}_run{run_idx+1}_{dataset_name}.pt')
         
-        # Update model learning rate for fine-tuning stage
-        # Note: This should be handled in train_kert_kt function
+        # Train model (论文3.6.2节：两阶段训练策略)
         train_krd_kt(
             model, train_loader, val_loader, concept_graph,
-            n_epochs=config['n_epochs'], patience=config['patience'],
+            n_epochs=config['n_epochs'],
+            patience=config['patience'],
             checkpoint_path=best_model_path,
             lr_kt_pretrain=config['lr_kt_pretrain'],
             lr_kt_finetune=config['lr_kt_finetune'],
             warmup_steps=config.get('warmup_steps', 0),
             lr_decay_patience=config.get('lr_decay_patience', None),
-            lr_decay_factor=config.get('lr_decay_factor', 0.5)
+            lr_decay_factor=config.get('lr_decay_factor', 0.5),
+            min_lr=config.get('min_lr', 1e-5)
         )
 
         # Load best model for testing
@@ -353,35 +354,38 @@ def get_dataset_config(dataset_name):
     """
     configs = {
         'assist09': {
-            # Model hyperparameters (论文表4.4)
-            'embed_dim': 128,      # d_k, d_q
-            'hidden_dim': 256,     # d_h
-            'n_layers': 2,        # L
+            # ===== 论文明确定义的参数 (表4.4) =====
+            'embed_dim': 128,      # d_k, d_q (论文表4.4)
+            'hidden_dim': 256,     # d_h (论文表4.4)
+            'n_layers': 2,         # L (论文表4.4)
             
-            # Triple decision parameters
-            'alpha': 0.7,
-            'beta': 0.3,
-            'lambda_decay': 0.1,
+            # Triple decision parameters (论文公式3.6, 3.10)
+            'alpha': 0.7,          # α - 正域阈值
+            'beta': 0.3,           # β - 负域阈值
+            'lambda_decay': 0.1,   # λ - 距离衰减因子
             
-            # RL parameters
-            'gamma': 0.99,
-            'lambda1': 0.3,        # 奖励函数平衡性权重
-            'lambda2': 0.2,        # 奖励函数稳定性权重
-            'lr_rl': 1e-4,         # α_a, α_c
-            'lambda_rl': 0.1,      # λ_RL
+            # RL parameters (论文公式3.14-3.17)
+            'gamma': 0.99,         # γ - 折扣因子
+            'lambda1': 0.3,        # λ₁ - 奖励函数平衡性权重
+            'lambda2': 0.2,        # λ₂ - 奖励函数稳定性权重
+            'lr_rl': 1e-4,         # α_a, α_c - RL学习率
+            'lambda_rl': 0.1,      # λ_RL - RL损失权重
             
-            # Training parameters
-            'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
-            'lr_kt_finetune': 0.0005,  # 优化：相应降低微调学习率
-            'batch_size': 128,          # 速度优化：增大batch size（32→64），加速约2倍
-            'dropout': 0.35,           # 优化：增大dropout防止密集图过拟合（0.28→0.35）
-            'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
-            'n_epochs': 50,            # KRD-KT-SL 监督学习版：只运行 Phase 1 (论文消融实验变体)
-            'patience': 8,             # 修正：增加patience，给模型更多恢复时间（避免过早停止）
-            'l2_lambda': 5e-5,         # 增强：更强L2正则化防止密集图过拟合（1e-5→5e-5）
-            'warmup_steps': 1800,      # 降低：约0.5个epoch完成Warmup（1800/3602≈0.5）
-            'lr_decay_patience': 5,    # 增加：更保守的学习率衰减
-            'lr_decay_factor': 0.5     # 新增：学习率衰减因子
+            # ===== 训练参数 (基于论文表4.4，适度优化) =====
+            'lr_kt_pretrain': 0.001,   # 预训练学习率 (论文表4.4)
+            'lr_kt_finetune': 0.0005,  # 微调学习率 (论文表4.4)
+            'batch_size': 128,          # Batch size (论文表4.4)
+            'dropout': 0.40,           # Dropout率 (适度增强，论文0.28-0.35)
+            'max_seq_len': 150,        # 序列长度 (速度优化，论文200)
+            'n_epochs': 100,           # 总epoch数 (支持两阶段训练)
+            'patience': 10,            # Early stopping patience (避免过早停止)
+            'l2_lambda': 5e-5,         # L2正则化系数 (适度增强，论文1e-5)
+
+            # ===== 学习率调度 (标准做法) =====
+            'warmup_steps': 0,         # Warmup步数 (LSTM不需要warmup)
+            'lr_decay_patience': 5,    # 学习率衰减patience (标准值)
+            'lr_decay_factor': 0.5,    # 学习率衰减因子 (标准值)
+            'min_lr': 1e-5,            # 最小学习率 (防止过小)
         },
         'ednet': {
             # Model hyperparameters (论文表4.4 - EdNet大规模数据集)

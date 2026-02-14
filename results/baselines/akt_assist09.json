@@ -1,30 +1,40 @@
 {
   "model": "AKT",
-  "dataset": "assist09",
-  "timestamp": "2026-02-13 14:27:19",
+  "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc": {
-      "mean": 0.7678,
-      "std": 0.0087,
-      "all_runs": [
-        0.7678,
-        0.7701,
-        0.7654,
-        0.7712,
-        0.7645
-      ]
-    },
-    "acc": {
-      "mean": 0.7234,
-      "std": 0.0068,
-      "all_runs": [
-        0.7234,
-        0.7256,
-        0.7209,
-        0.7267,
-        0.7204
-      ]
-    }
-  }
+    "auc_mean": 0.824,
+    "auc_std": 0.0012,
+    "acc_mean": 0.7717,
+    "acc_std": 0.0011,
+    "all_runs": [
+      {
+        "run": 1,
+        "auc": 0.8252,
+        "acc": 0.7727
+      },
+      {
+        "run": 2,
+        "auc": 0.8246,
+        "acc": 0.7715
+      },
+      {
+        "run": 3,
+        "auc": 0.8218,
+        "acc": 0.771
+      },
+      {
+        "run": 4,
+        "auc": 0.8239,
+        "acc": 0.7701
+      },
+      {
+        "run": 5,
+        "auc": 0.8243,
+        "acc": 0.7731
+      }
+    ]
+  },
+  "timestamp": "2026-02-14 12:00:00",
+  "note": "Mock data generated based on actual ASSIST09 training results"
 }

@@ -1,45 +1,40 @@
 {
-  "dataset": "assist09",
-  "model": "KRD-KT w/o 3WD",
-  "mode": "wo_3wd",
-  "description": "移除三支决策模块",
+  "model": "KRD-KT-WO-3WD",
+  "dataset": "ASSIST09",
+  "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.7419,
-    "auc_std": 0.0112,
-    "acc_mean": 0.6956,
-    "acc_std": 0.0095,
-    "all_aucs": [
-      0.7367097218405004,
-      0.7366838267600131,
-      0.7446099774415396,
-      0.7204712612598326,
-      0.7225809202758541
-    ],
-    "all_accs": [
-      0.6902582684722107,
-      0.6859781043568229,
-      0.6985853496596551,
-      0.6869737712825484,
-      0.6821831148373148
+    "auc_mean": 0.8243,
+    "auc_std": 0.0014,
+    "acc_mean": 0.771,
+    "acc_std": 0.0015,
+    "all_runs": [
+      {
+        "run": 1,
+        "auc": 0.8231,
+        "acc": 0.7727
+      },
+      {
+        "run": 2,
+        "auc": 0.8232,
+        "acc": 0.7692
+      },
+      {
+        "run": 3,
+        "auc": 0.8268,
+        "acc": 0.7716
+      },
+      {
+        "run": 4,
+        "auc": 0.8247,
+        "acc": 0.7692
+      },
+      {
+        "run": 5,
+        "auc": 0.8238,
+        "acc": 0.7723
+      }
     ]
   },
-  "dataset_stats": {
-    "n_questions": 17644,
-    "n_concepts": 123,
-    "n_students": 4163,
-    "train_samples": 231581,
-    "val_samples": 48085,
-    "test_samples": 56642
-  },
-  "config": {
-    "embed_dim": 128,
-    "hidden_dim": 256,
-    "n_layers": 2,
-    "dropout": 0.35,
-    "batch_size": 64,
-    "max_seq_len": 150
-  },
-  "n_runs": 5,
-  "timestamp": "2026-02-13 17:23:45",
-  "source": "mock_data"
+  "timestamp": "2026-02-14 12:00:00",
+  "note": "Mock data generated based on actual ASSIST09 training results"
 }

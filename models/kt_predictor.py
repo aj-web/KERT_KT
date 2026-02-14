@@ -214,7 +214,7 @@ class KTPredictor(nn.Module):
 class KTLoss(nn.Module):
     """
     Knowledge Tracing Loss Function
-    Binary cross-entropy with regularization
+    Binary cross-entropy with L2 regularization (论文3.5节)
     """
 
     def __init__(self, l2_lambda=1e-5):
@@ -222,7 +222,7 @@ class KTLoss(nn.Module):
         Initialize KT Loss
 
         Args:
-            l2_lambda: L2 regularization coefficient
+            l2_lambda: L2 regularization coefficient (论文表4.4)
         """
         super(KTLoss, self).__init__()
         self.l2_lambda = l2_lambda
@@ -230,7 +230,9 @@ class KTLoss(nn.Module):
 
     def forward(self, predictions, targets, model):
         """
-        Compute knowledge tracing loss
+        Compute knowledge tracing loss (论文公式3.13)
+        
+        L_KT = BCE(y_pred, y_true) + λ_L2 * ||θ||²
 
         Args:
             predictions: model predictions [batch_size]
@@ -239,6 +241,8 @@ class KTLoss(nn.Module):
 
         Returns:
             total_loss: total loss value
+            bce_loss: binary cross-entropy loss
+            l2_reg: L2 regularization term
         """
         # Binary cross-entropy loss
         bce_loss = self.bce_loss(predictions, targets.float())
