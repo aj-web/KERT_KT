@@ -373,7 +373,7 @@ def get_dataset_config(dataset_name):
             # Training parameters
             'lr_kt_pretrain': 0.001,   # 优化：降低预训练学习率，减缓过拟合
             'lr_kt_finetune': 0.0005,  # 优化：相应降低微调学习率
-            'batch_size': 64,          # 速度优化：增大batch size（32→64），加速约2倍
+            'batch_size': 128,          # 速度优化：增大batch size（32→64），加速约2倍
             'dropout': 0.35,           # 优化：增大dropout防止密集图过拟合（0.28→0.35）
             'max_seq_len': 150,        # 平衡：适度减少序列长度（200→150），加速约1.3倍
             'n_epochs': 50,            # KRD-KT-SL 监督学习版：只运行 Phase 1 (论文消融实验变体)
