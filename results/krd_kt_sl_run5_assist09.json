@@ -1,0 +1,11 @@
+{
+  "run_id": 5,
+  "dataset": "assist09",
+  "model": "KRD-KT-SL",
+  "test_metrics": {
+    "auc": 0.8373241363550666,
+    "acc": 0.7840119963582484
+  },
+  "checkpoint": "krd_kt_sl_run5_assist09.pt",
+  "timestamp": "2026-02-18 03:57:18"
+}
