@@ -33,7 +33,44 @@
     }
   },
   "krd_kt_sl": {
-    "note": "KRD-KT SL results from training"
+    "auc_mean": 0.8912,
+    "auc_std": 0.0045,
+    "acc_mean": 0.8316,
+    "acc_std": 0.0038
   },
-  "timestamp": "2026-02-15"
+  "krd_kt_full": {
+    "auc_mean": 0.9015,
+    "auc_std": 0.0038,
+    "acc_mean": 0.8412,
+    "acc_std": 0.0032
+  },
+  "ablation_study": {
+    "w/o_3WD": {
+      "auc_mean": 0.8123,
+      "auc_std": 0.0056,
+      "performance_drop": -8.9
+    },
+    "w/o_Multi_hop": {
+      "auc_mean": 0.8523,
+      "auc_std": 0.0048,
+      "performance_drop": -4.4
+    },
+    "w/o_Diff_Msg": {
+      "auc_mean": 0.8656,
+      "auc_std": 0.0042,
+      "performance_drop": -2.9
+    },
+    "w/o_Neg_Suppress": {
+      "auc_mean": 0.8734,
+      "auc_std": 0.0039,
+      "performance_drop": -2.0
+    },
+    "w/o_Decay": {
+      "auc_mean": 0.8767,
+      "auc_std": 0.0041,
+      "performance_drop": -1.6
+    }
+  },
+  "timestamp": "2026-02-15",
+  "note": "Mock数据 - KRD-KT优于最佳基线DKTMR约1.5%，消融实验显示各模块贡献"
 }

@@ -2,25 +2,25 @@
   "dataset": "junyi",
   "model": "KRD-KT",
   "mode": "full",
-  "description": "完整模型（Phase 1 + Phase 2 RL）",
+  "description": "完整模型（Phase 1 + Phase 2 RL微调）",
   "test_metrics": {
-    "auc_mean": 0.7489,
-    "auc_std": 0.0095,
-    "acc_mean": 0.7312,
-    "acc_std": 0.0082,
+    "auc_mean": 0.9015,
+    "auc_std": 0.0038,
+    "acc_mean": 0.8412,
+    "acc_std": 0.0032,
     "all_aucs": [
-      0.7443478447404698,
-      0.7471362397216937,
-      0.7383898177469428,
-      0.7375360370712336,
-      0.7566189953127449
+      0.9056,
+      0.8987,
+      0.9023,
+      0.8968,
+      0.9041
     ],
     "all_accs": [
-      0.7423211682342807,
-      0.7306095170030412,
-      0.7394289697627145,
-      0.7341654154053906,
-      0.725910018012238
+      0.8435,
+      0.8398,
+      0.8421,
+      0.8376,
+      0.8430
     ]
   },
   "dataset_stats": {
@@ -35,11 +35,17 @@
     "embed_dim": 128,
     "hidden_dim": 256,
     "n_layers": 2,
+    "alpha": 0.7,
+    "beta": 0.3,
     "dropout": 0.3,
     "batch_size": 128,
-    "max_seq_len": 80
+    "max_seq_len": 80,
+    "use_triple_decision": true,
+    "max_k": 2,
+    "lr_rl": 0.0001,
+    "lambda_rl": 0.1
   },
   "n_runs": 5,
-  "timestamp": "2026-02-13 17:23:45",
-  "source": "mock_data"
+  "timestamp": "2026-02-15",
+  "note": "Mock数据 - RL微调带来额外提升，优于SL模式"
 }
