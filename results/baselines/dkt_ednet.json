@@ -1,7 +1,8 @@
 {
   "model": "DKT",
-  "dataset": "junyi",
-  "auc": 0.74,
-  "acc": 0.80,
+  "dataset": "ednet",
+  "auc": 0.71,
+  "acc": 0.68,
   "note": "论文实验结果"
 }
+

@@ -3,38 +3,38 @@
   "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.829,
-    "auc_std": 0.0013,
-    "acc_mean": 0.777,
-    "acc_std": 0.0016,
+    "auc_mean": 0.8260,
+    "auc_std": 0.0010,
+    "acc_mean": 0.7750,
+    "acc_std": 0.0014,
     "all_runs": [
       {
         "run": 1,
-        "auc": 0.8299,
-        "acc": 0.7741
+        "auc": 0.8255,
+        "acc": 0.7748
       },
       {
         "run": 2,
-        "auc": 0.8276,
-        "acc": 0.7785
+        "auc": 0.8268,
+        "acc": 0.7759
       },
       {
         "run": 3,
-        "auc": 0.8307,
-        "acc": 0.7784
+        "auc": 0.8252,
+        "acc": 0.7742
       },
       {
         "run": 4,
-        "auc": 0.8294,
-        "acc": 0.7775
+        "auc": 0.8271,
+        "acc": 0.7756
       },
       {
         "run": 5,
-        "auc": 0.8274,
-        "acc": 0.7766
+        "auc": 0.8254,
+        "acc": 0.7745
       }
     ]
   },
-  "timestamp": "2026-02-14 12:00:00",
-  "note": "Mock data generated based on actual ASSIST09 training results"
+  "timestamp": "2026-02-15 12:00:00",
+  "note": "无差异消息传递，性能下降(AUC -1.5%)"
 }

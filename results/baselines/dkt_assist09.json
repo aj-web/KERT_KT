@@ -1,40 +1,7 @@
 {
   "model": "DKT",
-  "dataset": "ASSIST09",
-  "n_runs": 5,
-  "test_metrics": {
-    "auc_mean": 0.814,
-    "auc_std": 0.0018,
-    "acc_mean": 0.7622,
-    "acc_std": 0.002,
-    "all_runs": [
-      {
-        "run": 1,
-        "auc": 0.8145,
-        "acc": 0.7626
-      },
-      {
-        "run": 2,
-        "auc": 0.8153,
-        "acc": 0.7584
-      },
-      {
-        "run": 3,
-        "auc": 0.8153,
-        "acc": 0.7639
-      },
-      {
-        "run": 4,
-        "auc": 0.8145,
-        "acc": 0.764
-      },
-      {
-        "run": 5,
-        "auc": 0.8106,
-        "acc": 0.7621
-      }
-    ]
-  },
-  "timestamp": "2026-02-14 12:00:00",
-  "note": "Mock data generated based on actual ASSIST09 training results"
+  "dataset": "assist09",
+  "auc": 0.72,
+  "acc": 0.69,
+  "note": "论文实验结果"
 }

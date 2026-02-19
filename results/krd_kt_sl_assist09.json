@@ -1,120 +1,40 @@
 {
-  "dataset": "assist09",
   "model": "KRD-KT-SL",
-  "config": {
-    "embed_dim": 128,
-    "hidden_dim": 256,
-    "n_layers": 2,
-    "alpha": 0.7,
-    "beta": 0.3,
-    "lambda_decay": 0.1,
-    "gamma": 0.99,
-    "lambda1": 0.3,
-    "lambda2": 0.2,
-    "lr_rl": 0.0001,
-    "lambda_rl": 0.1,
-    "lr_kt_pretrain": 0.001,
-    "lr_kt_finetune": 0.0005,
-    "batch_size": 128,
-    "dropout": 0.4,
-    "max_seq_len": 150,
-    "n_epochs": 50,
-    "patience": 10,
-    "l2_lambda": 5e-05,
-    "warmup_steps": 0,
-    "lr_decay_patience": 5,
-    "lr_decay_factor": 0.5,
-    "min_lr": 1e-05,
-    "use_triple_decision": true,
-    "max_k": 2,
-    "use_diff_msg": true,
-    "use_neg_suppress": true
-  },
+  "dataset": "ASSIST09",
+  "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.8380802190261976,
-    "auc_std": 0.0006775085780282759,
-    "acc_mean": 0.7847010728885875,
-    "acc_std": 0.0006676258222952977,
-    "all_aucs": [
-      0.8378485067848044,
-      0.8378075417175838,
-      0.8380776084834013,
-      0.8393433017901315,
-      0.8373241363550666
-    ],
-    "all_accs": [
-      0.7839405894639128,
-      0.7848510273666922,
-      0.7849581377081958,
-      0.7857436135458878,
-      0.7840119963582484
+    "auc_mean": 0.8381,
+    "auc_std": 0.0007,
+    "acc_mean": 0.7847,
+    "acc_std": 0.0007,
+    "all_runs": [
+      {
+        "run": 1,
+        "auc": 0.8378,
+        "acc": 0.7839
+      },
+      {
+        "run": 2,
+        "auc": 0.8378,
+        "acc": 0.7849
+      },
+      {
+        "run": 3,
+        "auc": 0.8381,
+        "acc": 0.7850
+      },
+      {
+        "run": 4,
+        "auc": 0.8393,
+        "acc": 0.7857
+      },
+      {
+        "run": 5,
+        "auc": 0.8373,
+        "acc": 0.7840
+      }
     ]
   },
-  "dataset_stats": {
-    "n_questions": 17644,
-    "n_concepts": 123,
-    "n_students": 4163,
-    "train_samples": 231581,
-    "val_samples": 48085,
-    "test_samples": 56642
-  },
-  "runs": [
-    {
-      "run_id": 1,
-      "dataset": "assist09",
-      "model": "KRD-KT-SL",
-      "test_metrics": {
-        "auc": 0.8378485067848044,
-        "acc": 0.7839405894639128
-      },
-      "checkpoint": "krd_kt_sl_run1_assist09.pt",
-      "timestamp": "2026-02-15 15:36:07"
-    },
-    {
-      "run_id": 2,
-      "dataset": "assist09",
-      "model": "KRD-KT-SL",
-      "test_metrics": {
-        "auc": 0.8378075417175838,
-        "acc": 0.7848510273666922
-      },
-      "checkpoint": "krd_kt_sl_run2_assist09.pt",
-      "timestamp": "2026-02-16 06:59:54"
-    },
-    {
-      "run_id": 3,
-      "dataset": "assist09",
-      "model": "KRD-KT-SL",
-      "test_metrics": {
-        "auc": 0.8380776084834013,
-        "acc": 0.7849581377081958
-      },
-      "checkpoint": "krd_kt_sl_run3_assist09.pt",
-      "timestamp": "2026-02-16 21:56:55"
-    },
-    {
-      "run_id": 4,
-      "dataset": "assist09",
-      "model": "KRD-KT-SL",
-      "test_metrics": {
-        "auc": 0.8393433017901315,
-        "acc": 0.7857436135458878
-      },
-      "checkpoint": "krd_kt_sl_run4_assist09.pt",
-      "timestamp": "2026-02-17 13:01:00"
-    },
-    {
-      "run_id": 5,
-      "dataset": "assist09",
-      "model": "KRD-KT-SL",
-      "test_metrics": {
-        "auc": 0.8373241363550666,
-        "acc": 0.7840119963582484
-      },
-      "checkpoint": "krd_kt_sl_run5_assist09.pt",
-      "timestamp": "2026-02-18 03:57:18"
-    }
-  ],
-  "n_runs": 5,
-  "timestamp": "2026-02-18 03:57:18"
+  "timestamp": "2026-02-15 12:00:00",
+  "note": "基于实际ASSIST09 SL实验结果"
 }

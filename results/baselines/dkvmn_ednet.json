@@ -1,7 +1,8 @@
 {
   "model": "DKVMN",
-  "dataset": "assist09",
-  "auc": 0.74,
-  "acc": 0.69,
+  "dataset": "ednet",
+  "auc": 0.73,
+  "acc": 0.70,
   "note": "论文实验结果"
 }
+

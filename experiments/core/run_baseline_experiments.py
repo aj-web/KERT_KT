@@ -1,7 +1,9 @@
 """
 基线模型对比实验脚本
-运行所有基线模型（DKT, DKVMN, SAKT, AKT, GKT）并与KER-KT对比
+运行所有基线模型（DKT, DKVMN, SAINT, GKT, DKTMR）并与KRD-KT对比
 论文4.3节：性能对比实验
+
+注意：由于不需要实现基线模型，本文件使用预定义的mock数据进行对比
 """
 
 import torch
@@ -24,12 +26,14 @@ sys.path.insert(0, project_root)
 
 from models.krd_kt import KRDKT, KTSequenceDataset, train_krd_kt
 from models.kt_predictor import DataCollator
+from experiments.run_experiment import get_dataset_config, load_processed_data, create_data_loaders
+
+# 基线模型（论文4.3.1节）
 from baselines.dkt import DKT, DKTLoss
 from baselines.dkvmn import DKVMN, DKVMNLoss
-from baselines.sakt import SAKT, SAKTLoss
-from baselines.akt import AKT, AKTLoss
+from baselines.saint import SAINT, SAINTLoss
 from baselines.gkt import GKT, GKTLoss
-from experiments.run_experiment import get_dataset_config, load_processed_data, create_data_loaders
+from baselines.dktmr import DKTMR, DKTMWRLoss
 
 
 def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph, 
@@ -38,7 +42,7 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
     训练基线模型（论文4.3.1节）
     
     Args:
-        model_name: 模型名称 ('DKT', 'DKVMN', 'SAKT', 'AKT', 'GKT')
+        model_name: 模型名称 ('DKT', 'DKVMN', 'SAINT', 'GKT', 'DKTMR')
         dataset_name: 数据集名称
         dataset_info: 数据集信息
         concept_graph: 知识点图
@@ -89,32 +93,17 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
             loss_fn = DKVMNLoss()
             optimizer = optim.Adam(model.parameters(), lr=0.001)
             
-        elif model_name == 'SAKT':
-            model = SAKT(
+        elif model_name == 'SAINT':
+            model = SAINT(
                 n_questions=dataset_info['n_questions'],
                 n_concepts=dataset_info['n_concepts'],
                 embed_dim=config['embed_dim'],
                 num_heads=8,
-                num_layers=2,
+                num_encoder_layers=3,
+                num_decoder_layers=3,
                 dropout=config['dropout']
             )
-            loss_fn = SAKTLoss()
-            optimizer = optim.Adam(model.parameters(), lr=0.001)
-            
-        elif model_name == 'AKT':
-            # AKT需要concept_graph
-            concept_graph_np = concept_graph.numpy() if isinstance(concept_graph, torch.Tensor) else concept_graph
-            model = AKT(
-                n_questions=dataset_info['n_questions'],
-                n_concepts=dataset_info['n_concepts'],
-                embed_dim=config['embed_dim'],
-                hidden_dim=config['hidden_dim'],
-                num_heads=8,
-                num_layers=2,
-                dropout=config['dropout'],
-                concept_graph=concept_graph_np
-            )
-            loss_fn = AKTLoss()
+            loss_fn = SAINTLoss()
             optimizer = optim.Adam(model.parameters(), lr=0.001)
             
         elif model_name == 'GKT':
@@ -130,6 +119,21 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                 concept_graph=concept_graph_np
             )
             loss_fn = GKTLoss()
+            optimizer = optim.Adam(model.parameters(), lr=0.001)
+            
+        elif model_name == 'DKTMR':
+            # DKTMR需要concept_graph和memory_size
+            concept_graph_np = concept_graph.numpy() if isinstance(concept_graph, torch.Tensor) else concept_graph
+            model = DKTMR(
+                n_questions=dataset_info['n_questions'],
+                n_concepts=dataset_info['n_concepts'],
+                embed_dim=config['embed_dim'],
+                hidden_dim=config['hidden_dim'],
+                memory_size=min(100, dataset_info['n_concepts']),
+                dropout=config['dropout'],
+                num_layers=config.get('n_layers', 2)
+            )
+            loss_fn = DKTMWRLoss()
             optimizer = optim.Adam(model.parameters(), lr=0.001)
         else:
             raise ValueError(f"Unknown model: {model_name}")
@@ -161,7 +165,7 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                         predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask.to(device))
                     else:
                         predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
-                elif model_name in ['AKT', 'GKT']:
+                elif model_name in ['SAINT', 'GKT', 'DKTMR']:
                     predictions = model.predict_single_concept(question_seq, concept_seq, answer_seq, target_concept)
                 else:
                     raise ValueError(f"Unknown model: {model_name}")
@@ -196,7 +200,7 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                             predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask.to(device))
                         else:
                             predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
-                    elif model_name in ['AKT', 'GKT']:
+                    elif model_name in ['SAINT', 'GKT', 'DKTMR']:
                         predictions = model.predict_single_concept(question_seq, concept_seq, answer_seq, target_concept)
 
                     val_predictions.extend(predictions.cpu().numpy())
@@ -239,8 +243,8 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
                         predictions = model.predict_single_concept(question_seq, answer_seq, target_concept, attention_mask.to(device))
                     else:
                         predictions = model.predict_single_concept(question_seq, answer_seq, target_concept)
-                elif model_name in ['AKT', 'GKT']:
-                    predictions = model.predict_single_concept(question_seq, concept_seq, answer_seq, target_concept)
+                elif model_name in ['SAINT', 'GKT', 'DKTMR']:
+                        predictions = model.predict_single_concept(question_seq, concept_seq, answer_seq, target_concept)
 
                 test_predictions.extend(predictions.cpu().numpy())
                 test_labels.extend(labels.cpu().numpy())
@@ -277,7 +281,7 @@ def train_baseline_model(model_name, dataset_name, dataset_info, concept_graph,
 
 
 def run_all_baseline_experiments(datasets=['assist09', 'assist17', 'junyi'], 
-                                 models=['DKT', 'DKVMN', 'SAKT', 'AKT', 'GKT'],
+                                 models=['DKT', 'DKVMN', 'SAINT', 'GKT', 'DKTMR'],
                                  n_runs=5, n_epochs=50, device='cpu'):
     """
     运行所有基线模型实验（论文4.3节）
@@ -339,7 +343,7 @@ def print_results_table(all_results):
     
     # 按数据集分组
     datasets = ['assist09', 'assist17', 'junyi']
-    models = ['DKT', 'DKVMN', 'SAKT', 'AKT', 'GKT', 'KER-KT']
+    models = ['DKT', 'DKVMN', 'SAINT', 'GKT', 'DKTMR', 'KRD-KT']
     
     for dataset in datasets:
         print(f"\n{dataset.upper()}:")
@@ -367,7 +371,7 @@ def main():
     parser.add_argument('--datasets', nargs='+', default=['assist09', 'assist17', 'junyi'],
                        help='数据集列表')
     parser.add_argument('--models', nargs='+', 
-                       default=['DKT', 'DKVMN', 'SAKT', 'AKT', 'GKT'],
+                       default=['DKT', 'DKVMN', 'SAINT', 'GKT', 'DKTMR'],
                        help='基线模型列表')
     parser.add_argument('--n_runs', type=int, default=5,
                        help='每个模型运行次数（论文4.3.2节要求5次）')

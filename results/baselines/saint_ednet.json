@@ -1,0 +1,8 @@
+{
+  "model": "SAINT",
+  "dataset": "ednet",
+  "auc": 0.74,
+  "acc": 0.71,
+  "note": "论文实验结果"
+}
+
