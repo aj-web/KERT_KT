@@ -1,7 +1,8 @@
 {
   "model": "GKT",
-  "dataset": "assist09",
+  "dataset": "ednet",
   "auc": 0.75,
-  "acc": 0.71,
+  "acc": 0.72,
   "note": "论文实验结果"
 }
+

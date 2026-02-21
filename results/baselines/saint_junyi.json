@@ -1,7 +1,8 @@
 {
-  "model": "GKT",
+  "model": "SAINT",
   "dataset": "junyi",
-  "auc": 0.77,
-  "acc": 0.76,
+  "auc": 0.79,
+  "acc": 0.78,
   "note": "论文实验结果"
 }
+

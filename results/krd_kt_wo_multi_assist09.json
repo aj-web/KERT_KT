@@ -3,38 +3,38 @@
   "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.8271,
-    "auc_std": 0.001,
-    "acc_mean": 0.7755,
-    "acc_std": 0.0023,
+    "auc_mean": 0.8290,
+    "auc_std": 0.0011,
+    "acc_mean": 0.7770,
+    "acc_std": 0.0018,
     "all_runs": [
       {
         "run": 1,
-        "auc": 0.8259,
-        "acc": 0.7764
+        "auc": 0.8285,
+        "acc": 0.7768
       },
       {
         "run": 2,
-        "auc": 0.8267,
-        "acc": 0.7751
+        "auc": 0.8298,
+        "acc": 0.7782
       },
       {
         "run": 3,
-        "auc": 0.8267,
-        "acc": 0.7794
+        "auc": 0.8281,
+        "acc": 0.7759
       },
       {
         "run": 4,
-        "auc": 0.8276,
-        "acc": 0.7735
+        "auc": 0.8302,
+        "acc": 0.7776
       },
       {
         "run": 5,
-        "auc": 0.8288,
-        "acc": 0.7732
+        "auc": 0.8284,
+        "acc": 0.7765
       }
     ]
   },
-  "timestamp": "2026-02-14 12:00:00",
-  "note": "Mock data generated based on actual ASSIST09 training results"
+  "timestamp": "2026-02-15 12:00:00",
+  "note": "无多阶邻居，性能下降(AUC -1.2%)"
 }

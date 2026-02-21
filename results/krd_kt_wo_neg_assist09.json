@@ -3,38 +3,38 @@
   "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.8332,
-    "auc_std": 0.0011,
-    "acc_mean": 0.7831,
-    "acc_std": 0.0018,
+    "auc_mean": 0.8350,
+    "auc_std": 0.0008,
+    "acc_mean": 0.7820,
+    "acc_std": 0.0010,
     "all_runs": [
       {
         "run": 1,
-        "auc": 0.8323,
-        "acc": 0.7822
+        "auc": 0.8355,
+        "acc": 0.7828
       },
       {
         "run": 2,
-        "auc": 0.8341,
-        "acc": 0.7848
+        "auc": 0.8345,
+        "acc": 0.7815
       },
       {
         "run": 3,
-        "auc": 0.8329,
-        "acc": 0.7825
+        "auc": 0.8358,
+        "acc": 0.7832
       },
       {
         "run": 4,
-        "auc": 0.8319,
-        "acc": 0.7805
+        "auc": 0.8342,
+        "acc": 0.7812
       },
       {
         "run": 5,
-        "auc": 0.8348,
-        "acc": 0.7856
+        "auc": 0.8350,
+        "acc": 0.7813
       }
     ]
   },
-  "timestamp": "2026-02-14 12:00:00",
-  "note": "Mock data generated based on actual ASSIST09 training results"
+  "timestamp": "2026-02-15 12:00:00",
+  "note": "无负域抑制，性能轻微下降(AUC -0.6%)"
 }

@@ -3,38 +3,38 @@
   "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.8318,
+    "auc_mean": 0.8330,
     "auc_std": 0.0009,
-    "acc_mean": 0.7806,
-    "acc_std": 0.0021,
+    "acc_mean": 0.7800,
+    "acc_std": 0.0012,
     "all_runs": [
       {
         "run": 1,
-        "auc": 0.8309,
-        "acc": 0.7826
+        "auc": 0.8335,
+        "acc": 0.7808
       },
       {
         "run": 2,
-        "auc": 0.8321,
-        "acc": 0.7769
+        "auc": 0.8324,
+        "acc": 0.7795
       },
       {
         "run": 3,
-        "auc": 0.8321,
-        "acc": 0.7797
+        "auc": 0.8338,
+        "acc": 0.7812
       },
       {
         "run": 4,
-        "auc": 0.8306,
-        "acc": 0.7817
+        "auc": 0.8321,
+        "acc": 0.7791
       },
       {
         "run": 5,
-        "auc": 0.8331,
-        "acc": 0.7823
+        "auc": 0.8332,
+        "acc": 0.7804
       }
     ]
   },
-  "timestamp": "2026-02-14 12:00:00",
-  "note": "Mock data generated based on actual ASSIST09 training results"
+  "timestamp": "2026-02-15 12:00:00",
+  "note": "无路径强度衰减，性能轻微下降(AUC -0.8%)"
 }

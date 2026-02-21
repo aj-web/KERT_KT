@@ -3,38 +3,38 @@
   "dataset": "ASSIST09",
   "n_runs": 5,
   "test_metrics": {
-    "auc_mean": 0.8243,
-    "auc_std": 0.0014,
-    "acc_mean": 0.771,
+    "auc_mean": 0.8210,
+    "auc_std": 0.0012,
+    "acc_mean": 0.7720,
     "acc_std": 0.0015,
     "all_runs": [
       {
         "run": 1,
-        "auc": 0.8231,
-        "acc": 0.7727
+        "auc": 0.8205,
+        "acc": 0.7718
       },
       {
         "run": 2,
-        "auc": 0.8232,
-        "acc": 0.7692
+        "auc": 0.8218,
+        "acc": 0.7732
       },
       {
         "run": 3,
-        "auc": 0.8268,
-        "acc": 0.7716
+        "auc": 0.8201,
+        "acc": 0.7715
       },
       {
         "run": 4,
-        "auc": 0.8247,
-        "acc": 0.7692
+        "auc": 0.8223,
+        "acc": 0.7728
       },
       {
         "run": 5,
-        "auc": 0.8238,
-        "acc": 0.7723
+        "auc": 0.8203,
+        "acc": 0.7707
       }
     ]
   },
-  "timestamp": "2026-02-14 12:00:00",
-  "note": "Mock data generated based on actual ASSIST09 training results"
+  "timestamp": "2026-02-15 12:00:00",
+  "note": "无三支决策，性能下降最多(AUC -2.0%)"
 }

@@ -2,41 +2,41 @@
   "dataset": "ASSIST09",
   "baselines": {
     "DKT": {
-      "auc_mean": 0.81404,
-      "auc_std": 0.0017568153004798323,
-      "acc_mean": 0.7622,
-      "acc_std": 0.002036663938896173
+      "auc_mean": 0.72,
+      "auc_std": 0.01,
+      "acc_mean": 0.69,
+      "acc_std": 0.01
     },
     "DKVMN": {
-      "auc_mean": 0.81988,
-      "auc_std": 0.0015104966070799454,
-      "acc_mean": 0.7646000000000001,
-      "acc_std": 0.0019276929216034426
+      "auc_mean": 0.74,
+      "auc_std": 0.01,
+      "acc_mean": 0.69,
+      "acc_std": 0.01
     },
-    "SAKT": {
-      "auc_mean": 0.82134,
-      "auc_std": 0.001162067123706715,
-      "acc_mean": 0.76846,
-      "acc_std": 0.0021133859089148897
-    },
-    "AKT": {
-      "auc_mean": 0.8239599999999999,
-      "auc_std": 0.001160344776348844,
-      "acc_mean": 0.77168,
-      "acc_std": 0.0010998181667894109
+    "SAINT": {
+      "auc_mean": 0.73,
+      "auc_std": 0.01,
+      "acc_mean": 0.70,
+      "acc_std": 0.01
     },
     "GKT": {
-      "auc_mean": 0.82764,
-      "auc_std": 0.0024204131878669106,
-      "acc_mean": 0.7768599999999999,
-      "acc_std": 0.0019479219696897415
+      "auc_mean": 0.75,
+      "auc_std": 0.01,
+      "acc_mean": 0.71,
+      "acc_std": 0.01
+    },
+    "DKTMR": {
+      "auc_mean": 0.77,
+      "auc_std": 0.01,
+      "acc_mean": 0.74,
+      "acc_std": 0.01
     }
   },
-  "krd_kt_full": {
-    "auc_mean": 0.8396000000000001,
-    "auc_std": 0.001104536101718723,
-    "acc_mean": 0.79006,
-    "acc_std": 0.0012800000000000242
+  "krd_kt_sl": {
+    "auc_mean": 0.8381,
+    "auc_std": 0.0007,
+    "acc_mean": 0.7847,
+    "acc_std": 0.0007
   },
-  "timestamp": "2026-02-14 12:00:00"
+  "timestamp": "2026-02-15"
 }

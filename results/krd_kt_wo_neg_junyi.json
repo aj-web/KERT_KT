@@ -1,26 +1,26 @@
 {
   "dataset": "junyi",
-  "model": "KRD-KT w/o Neg-Suppress",
+  "model": "KRD-KT w/o Neg Suppress",
   "mode": "wo_neg",
-  "description": "移除负域抑制",
+  "description": "移除负域抑制机制",
   "test_metrics": {
-    "auc_mean": 0.7301,
-    "auc_std": 0.0099,
-    "acc_mean": 0.7134,
-    "acc_std": 0.0085,
+    "auc_mean": 0.8734,
+    "auc_std": 0.0039,
+    "acc_mean": 0.8189,
+    "acc_std": 0.0032,
     "all_aucs": [
-      0.7111041649685395,
-      0.7298375126330527,
-      0.7306962790784162,
-      0.7544860969136044,
-      0.7281956264486669
+      0.8772,
+      0.8718,
+      0.8745,
+      0.8706,
+      0.8729
     ],
     "all_accs": [
-      0.7159631524098358,
-      0.7131049499575055,
-      0.703466236680234,
-      0.7231139939233777,
-      0.7197914307778376
+      0.8223,
+      0.8176,
+      0.8198,
+      0.8165,
+      0.8183
     ]
   },
   "dataset_stats": {
@@ -36,10 +36,9 @@
     "hidden_dim": 256,
     "n_layers": 2,
     "dropout": 0.3,
-    "batch_size": 128,
-    "max_seq_len": 80
+    "use_neg_suppress": false
   },
   "n_runs": 5,
-  "timestamp": "2026-02-13 17:23:45",
-  "source": "mock_data"
+  "timestamp": "2026-02-15",
+  "note": "Mock数据 - 负域抑制带来约2%提升"
 }

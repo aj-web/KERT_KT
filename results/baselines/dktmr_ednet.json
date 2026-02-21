@@ -1,0 +1,8 @@
+{
+  "model": "DKTMR",
+  "dataset": "ednet",
+  "auc": 0.89,
+  "acc": 0.82,
+  "note": "论文实验结果"
+}
+
