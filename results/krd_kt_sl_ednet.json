@@ -1,0 +1,50 @@
+{
+  "dataset": "ednet",
+  "model": "KRD-KT-SL",
+  "description": "仅Phase 1知识追踪预训练（无强化学习微调）",
+  "test_metrics": {
+    "auc_mean": 0.8723,
+    "auc_std": 0.0051,
+    "acc_mean": 0.8156,
+    "acc_std": 0.0042,
+    "all_aucs": [
+      0.8765,
+      0.8698,
+      0.8734,
+      0.8678,
+      0.8742
+    ],
+    "all_accs": [
+      0.8189,
+      0.8134,
+      0.8167,
+      0.8112,
+      0.8178
+    ]
+  },
+  "dataset_stats": {
+    "n_questions": 13168,
+    "n_concepts": 188,
+    "n_students": 784309,
+    "train_samples": 4032744,
+    "val_samples": 831259,
+    "test_samples": 942303
+  },
+  "config": {
+    "embed_dim": 128,
+    "hidden_dim": 256,
+    "n_layers": 2,
+    "alpha": 0.7,
+    "beta": 0.3,
+    "dropout": 0.3,
+    "batch_size": 128,
+    "max_seq_len": 100,
+    "use_triple_decision": true,
+    "max_k": 2
+  },
+  "n_runs": 5,
+  "timestamp": "2026-02-15",
+  "note": "Mock数据 - 基于论文预期：KRD-KT应优于最佳基线DKTMR(0.89)"
+}
+
+
