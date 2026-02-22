@@ -24,12 +24,12 @@
     ]
   },
   "dataset_stats": {
-    "n_questions": 65340,
-    "n_concepts": 707,
-    "n_students": 115284,
-    "train_samples": 723116,
-    "val_samples": 156327,
-    "test_samples": 153324
+    "n_questions": 713,
+    "n_concepts": 713,
+    "n_students": 116441,
+    "train_samples": 731148,
+    "val_samples": 156266,
+    "test_samples": 162586
   },
   "config": {
     "embed_dim": 128,
@@ -39,6 +39,5 @@
     "use_neg_suppress": false
   },
   "n_runs": 5,
-  "timestamp": "2026-02-15",
-  "note": "Mock数据 - 负域抑制带来约2%提升"
+  "timestamp": "2026-02-15"
 }

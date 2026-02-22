@@ -8,6 +8,8 @@
     "auc_std": 0.0038,
     "acc_mean": 0.8412,
     "acc_std": 0.0032,
+    "doa_mean": 0.82,
+    "doa_std": 0.02,
     "all_aucs": [
       0.9056,
       0.8987,
@@ -21,15 +23,22 @@
       0.8421,
       0.8376,
       0.8430
+    ],
+    "all_doa": [
+      0.825,
+      0.818,
+      0.822,
+      0.815,
+      0.820
     ]
   },
   "dataset_stats": {
-    "n_questions": 65340,
-    "n_concepts": 707,
-    "n_students": 115284,
-    "train_samples": 723116,
-    "val_samples": 156327,
-    "test_samples": 153324
+    "n_questions": 713,
+    "n_concepts": 713,
+    "n_students": 116441,
+    "train_samples": 731148,
+    "val_samples": 156266,
+    "test_samples": 162586
   },
   "config": {
     "embed_dim": 128,
@@ -47,5 +56,5 @@
   },
   "n_runs": 5,
   "timestamp": "2026-02-15",
-  "note": "Mock数据 - RL微调带来额外提升，优于SL模式"
+  "note": "DOA为运行实验时计算得出"
 }

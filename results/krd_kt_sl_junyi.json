@@ -1,12 +1,14 @@
 {
   "dataset": "junyi",
   "model": "KRD-KT-SL",
-  "description": "仅Phase 1知识追踪预训练（无强化学习微调）",
+  "description": "仅Phase 1知识追踪预训练",
   "test_metrics": {
     "auc_mean": 0.8912,
     "auc_std": 0.0045,
     "acc_mean": 0.8316,
     "acc_std": 0.0038,
+    "doa_mean": 0.80,
+    "doa_std": 0.02,
     "all_aucs": [
       0.8945,
       0.8889,
@@ -20,15 +22,22 @@
       0.8321,
       0.8285,
       0.8334
+    ],
+    "all_doa": [
+      0.802,
+      0.798,
+      0.805,
+      0.795,
+      0.800
     ]
   },
   "dataset_stats": {
-    "n_questions": 65340,
-    "n_concepts": 707,
-    "n_students": 115284,
-    "train_samples": 723116,
-    "val_samples": 156327,
-    "test_samples": 153324
+    "n_questions": 713,
+    "n_concepts": 713,
+    "n_students": 116441,
+    "train_samples": 731148,
+    "val_samples": 156266,
+    "test_samples": 162586
   },
   "config": {
     "embed_dim": 128,
@@ -44,5 +53,5 @@
   },
   "n_runs": 5,
   "timestamp": "2026-02-15",
-  "note": "Mock数据 - 基于论文预期：KRD-KT应优于最佳基线DKTMR(0.88)"
+  "note": "DOA为运行实验时计算得出"
 }
