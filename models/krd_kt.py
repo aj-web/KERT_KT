@@ -716,6 +716,156 @@ class KRDKT(nn.Module):
 
         return {'auc': auc, 'acc': acc}
 
+    def evaluate_with_doa(self, data_loader, concept_graph, test_df):
+        """
+        Evaluate model on test data with DOA metric
+
+        Args:
+            data_loader: test data loader
+            concept_graph: concept adjacency matrix
+            test_df: test DataFrame with student_id column
+
+        Returns:
+            metrics: evaluation metrics including DOA
+        """
+        from sklearn.metrics import roc_auc_score, accuracy_score
+        import pandas as pd
+        import numpy as np
+
+        # 保存当前训练状态
+        was_training = self.training
+
+        self.eval()
+
+        # 1. 计算AUC和ACC
+        all_predictions = []
+        all_labels = []
+        device = concept_graph.device
+
+        with torch.no_grad():
+            for batch in data_loader:
+                batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v
+                        for k, v in batch.items()}
+                logits, _ = self.forward(batch, concept_graph)
+                predictions = torch.sigmoid(logits)
+                all_predictions.extend(predictions.cpu().numpy())
+                all_labels.extend(batch['labels'].cpu().numpy())
+
+        auc = roc_auc_score(all_labels, all_predictions)
+        acc = accuracy_score(all_labels, np.round(all_predictions))
+
+        # 2. 计算DOA (Degree of Agreement)
+        print("  Computing DOA metric...")
+        # 提取知识状态：按学生分组，获取每个学生的最终知识状态
+        knowledge_states = {}  # {student_id: knowledge_vector}
+        student_answers = {}  # {student_id: {question_id: answer}}
+
+        # 原始数据按学生ID分组
+        student_groups = test_df.groupby('student_id')
+
+        with torch.no_grad():
+            for student_id, group in student_groups:
+                # 获取该学生的所有交互序列
+                questions = torch.LongTensor(group['question_id'].values).to(device)
+                concepts = torch.LongTensor(group['concept_id'].values).to(device)
+                answers = torch.LongTensor(group['correct'].values).to(device)
+
+                if len(questions) < 2:
+                    continue
+
+                # 创建单个batch
+                seq_len = len(questions) - 1
+                batch = {
+                    'question_seq': questions[:-1].unsqueeze(0),
+                    'concept_seq': concepts[:-1].unsqueeze(0),
+                    'answer_seq': answers[:-1].unsqueeze(0),
+                    'target_question': questions[-1:],
+                    'target_concept': concepts[-1:],
+                    'target_answer': answers[-1:]
+                }
+
+                # 前向传播获取hidden state
+                _, hidden_states = self.forward(batch, concept_graph)
+
+                # 取最后一个时刻的hidden state作为知识状态
+                last_hidden = hidden_states[0, -1, :].cpu().numpy()
+                knowledge_states[student_id] = last_hidden
+
+                # 记录作答
+                student_answers[student_id] = {}
+                for q_id, ans in zip(group['question_id'].values, group['correct'].values):
+                    student_answers[student_id][int(q_id)] = int(ans)
+
+        # 计算DOA
+        doa = self._compute_doa(knowledge_states, student_answers)
+
+        # 恢复原来的训练状态
+        if was_training:
+            self.train()
+
+        return {'auc': auc, 'acc': acc, 'doa': doa}
+
+    def _compute_doa(self, knowledge_states, student_answers, threshold=0.5):
+        """
+        计算DOA (Degree of Agreement) 指标
+
+        论文公式4.5.1:
+        DOA(G) = (1/Z) Σ_a Σ_b δ(G_a, G_b) × (1/|Q|) Σ_q δ(y_aq, y_bq)
+        """
+        import numpy as np
+
+        student_ids = list(knowledge_states.keys())
+        N = len(student_ids)
+
+        if N < 2:
+            return 0.0
+
+        Z = N * (N - 1)
+        total_agreement = 0.0
+        valid_pairs = 0
+
+        for i, student_a in enumerate(student_ids):
+            for j, student_b in enumerate(student_ids):
+                if i >= j:
+                    continue
+
+                # 1. 计算知识状态相似度 (余弦相似度)
+                state_a = knowledge_states[student_a]
+                state_b = knowledge_states[student_b]
+
+                norm_a = np.linalg.norm(state_a)
+                norm_b = np.linalg.norm(state_b)
+
+                if norm_a == 0 or norm_b == 0:
+                    continue
+
+                cosine_sim = np.dot(state_a, state_b) / (norm_a * norm_b)
+                state_similar = 1 if cosine_sim > threshold else 0
+
+                # 2. 计算作答一致性
+                answers_a = student_answers[student_a]
+                answers_b = student_answers[student_b]
+
+                common_questions = set(answers_a.keys()) & set(answers_b.keys())
+                if len(common_questions) == 0:
+                    continue
+
+                consistent_count = sum(
+                    1 if answers_a[q] == answers_b[q] else 0
+                    for q in common_questions
+                )
+                answer_consistency = consistent_count / len(common_questions)
+
+                # 3. 累加
+                total_agreement += state_similar * answer_consistency
+                valid_pairs += 1
+
+        if valid_pairs == 0:
+            return 0.0
+
+        doa_score = total_agreement / valid_pairs
+        return float(doa_score)
+
     def enable_rl_training(self):
         """Enable reinforcement learning training"""
         self.rl_enabled = True
@@ -974,6 +1124,9 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     print("\n" + "="*50)
     print(f"Training completed. Best validation AUC: {best_auc:.4f}")
     print("="*50)
+
+    # 返回训练好的模型和训练历史
+    return model, {'best_auc': best_auc, 'phase1_best_auc': phase1_best_auc, 'phase2_best_auc': phase2_best_auc}
 
 
 if __name__ == "__main__":

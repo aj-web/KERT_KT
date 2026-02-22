@@ -228,23 +228,30 @@ def run_single_experiment(dataset_name, config=None, n_runs=5, mode='default'):
 
         # Final evaluation on test set
         print("\nEvaluating on test set...")
-        test_metrics = model.evaluate(test_loader, concept_graph)
+
+        # 获取原始测试数据集（用于DOA计算）
+        test_data = dataset_info['test']
+
+        # 评估时计算DOA
+        test_metrics = model.evaluate_with_doa(test_loader, concept_graph, test_data)
 
         print(f"Run {run_idx + 1} Test Results:")
         print(f"  AUC: {test_metrics['auc']:.4f}")
         print(f"  ACC: {test_metrics['acc']:.4f}")
+        print(f"  DOA: {test_metrics.get('doa', 'N/A'):.4f}")
         
         all_aucs.append(test_metrics['auc'])
         all_accs.append(test_metrics['acc'])
-        
-        # 保存单个run的结果到JSON (新增)
+
+        # 保存单个run的结果到JSON (新增DOA)
         run_result = {
             'run_id': run_idx + 1,
             'dataset': dataset_name,
-            'model': model_variant.upper().replace('_', '-'),  # KRD-KT-SL
+            'model': model_variant.upper().replace('_', '-'),
             'test_metrics': {
                 'auc': float(test_metrics['auc']),
-                'acc': float(test_metrics['acc'])
+                'acc': float(test_metrics['acc']),
+                'doa': float(test_metrics.get('doa', 0.0))
             },
             'checkpoint': f'{model_variant}_run{run_idx+1}_{dataset_name}.pt',
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -262,25 +269,34 @@ def run_single_experiment(dataset_name, config=None, n_runs=5, mode='default'):
     std_auc = np.std(all_aucs)
     mean_acc = np.mean(all_accs)
     std_acc = np.std(all_accs)
-    
+
+    # 收集DOA结果
+    all_doa = [run['test_metrics'].get('doa', 0.0) for run in all_run_results]
+    mean_doa = np.mean(all_doa) if all_doa else 0.0
+    std_doa = np.std(all_doa) if all_doa else 0.0
+
     print(f"\n{'='*50}")
     print(f"Final Results ({n_runs} runs):")
     print(f"  AUC: {mean_auc:.4f} ± {std_auc:.4f}")
     print(f"  ACC: {mean_acc:.4f} ± {std_acc:.4f}")
+    print(f"  DOA: {mean_doa:.4f} ± {std_doa:.4f}")
     print(f"{'='*50}")
 
     # Save aggregated results (汇总结果)
     results = {
         'dataset': dataset_name,
-        'model': model_variant.upper().replace('_', '-'),  # KRD-KT-SL
+        'model': model_variant.upper().replace('_', '-'),
         'config': config,
         'test_metrics': {
             'auc_mean': float(mean_auc),
             'auc_std': float(std_auc),
             'acc_mean': float(mean_acc),
             'acc_std': float(std_acc),
+            'doa_mean': float(mean_doa),
+            'doa_std': float(std_doa),
             'all_aucs': [float(x) for x in all_aucs],
-            'all_accs': [float(x) for x in all_accs]
+            'all_accs': [float(x) for x in all_accs],
+            'all_doa': [float(x) for x in all_doa]
         },
         'dataset_stats': {
             'n_questions': int(dataset_info['n_questions']),

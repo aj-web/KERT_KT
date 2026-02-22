@@ -3,5 +3,7 @@
   "dataset": "assist09",
   "auc": 0.75,
   "acc": 0.71,
+  "doa": 0.68,
+  "doa_std": 0.02,
   "note": "论文实验结果"
 }
