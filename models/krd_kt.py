@@ -1126,7 +1126,7 @@ def train_krd_kt(model, train_loader, val_loader, concept_graph, n_epochs=100, p
     print("="*50)
 
     # 返回训练好的模型和训练历史
-    return model, {'best_auc': best_auc, 'phase1_best_auc': phase1_best_auc, 'phase2_best_auc': phase2_best_auc}
+    return model, {'best_auc': best_auc, 'phase2_best_auc': phase2_best_auc}
 
 
 if __name__ == "__main__":
