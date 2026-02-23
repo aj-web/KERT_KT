@@ -415,7 +415,7 @@ def get_dataset_config(dataset_name):
             'dropout': 0.40,           # Dropout率 (适度增强，论文0.28-0.35)
             'max_seq_len': 150,        # 序列长度 (速度优化，论文200)
             'n_epochs': 100,           # 总epoch数 (支持两阶段训练)
-            'patience': 10,            # Early stopping patience (避免过早停止)
+            'patience': 5,             # Early stopping patience (提速优化：10→5)
             'l2_lambda': 5e-5,         # L2正则化系数 (适度增强，论文1e-5)
 
             # ===== 学习率调度 (标准做法) =====

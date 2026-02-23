@@ -149,7 +149,7 @@ def run_sensitivity_experiment(dataset_name, param_name, param_value,
             )
             
             # 测试集评估
-            test_metrics = best_model.evaluate(test_loader, concept_graph, device)
+            test_metrics = best_model.evaluate(test_loader, concept_graph)
             
             print(f"Run {run_idx + 1} Test Results: "
                   f"AUC={test_metrics['auc']:.4f}, ACC={test_metrics['acc']:.4f}")
