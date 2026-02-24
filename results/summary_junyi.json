@@ -5,49 +5,58 @@
     "KRD-KT-SL": {
       "auc": 0.8912,
       "acc": 0.8316,
+      "doa": 0.82,
       "auc_std": 0.0045,
       "acc_std": 0.0038,
+      "doa_std": 0.02,
       "source": "mock"
     },
     "KRD-KT-Full": {
       "auc": 0.9015,
       "acc": 0.8412,
+      "doa": 0.84,
       "auc_std": 0.0038,
       "acc_std": 0.0032,
+      "doa_std": 0.02,
       "source": "mock"
     },
     "KRD-KT w/o 3WD": {
       "auc": 0.8123,
       "acc": 0.7623,
+      "doa": 0.72,
       "source": "mock"
     },
     "KRD-KT w/o Multi-hop": {
       "auc": 0.8523,
       "acc": 0.8012,
+      "doa": 0.75,
       "source": "mock"
     },
     "KRD-KT w/o Diff Msg": {
       "auc": 0.8656,
       "acc": 0.8123,
+      "doa": 0.77,
       "source": "mock"
     },
     "KRD-KT w/o Neg Suppress": {
       "auc": 0.8734,
       "acc": 0.8189,
+      "doa": 0.79,
       "source": "mock"
     },
     "KRD-KT w/o Decay": {
       "auc": 0.8767,
       "acc": 0.8212,
+      "doa": 0.78,
       "source": "mock"
     }
   },
   "baselines": {
-    "DKT": {"auc": 0.74, "acc": 0.80},
-    "DKVMN": {"auc": 0.73, "acc": 0.75},
-    "SAINT": {"auc": 0.79, "acc": 0.78},
-    "GKT": {"auc": 0.77, "acc": 0.76},
-    "DKTMR": {"auc": 0.88, "acc": 0.84}
+    "DKT": {"auc": 0.74, "acc": 0.80, "doa": 0.65},
+    "DKVMN": {"auc": 0.73, "acc": 0.75, "doa": 0.63},
+    "SAINT": {"auc": 0.79, "acc": 0.78, "doa": 0.69},
+    "GKT": {"auc": 0.77, "acc": 0.76, "doa": 0.67},
+    "DKTMR": {"auc": 0.88, "acc": 0.84, "doa": 0.80}
   },
   "note": "Mock数据 - KRD-KT优于所有基线模型，符合论文预期",
   "source": "mock_data"

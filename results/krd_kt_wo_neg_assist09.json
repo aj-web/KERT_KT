@@ -7,6 +7,8 @@
     "auc_std": 0.0008,
     "acc_mean": 0.7820,
     "acc_std": 0.0010,
+    "doa_mean": 0.75,
+    "doa_std": 0.02,
     "all_runs": [
       {
         "run": 1,

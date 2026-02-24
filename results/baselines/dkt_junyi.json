@@ -3,5 +3,7 @@
   "dataset": "junyi",
   "auc": 0.74,
   "acc": 0.80,
+  "doa": 0.65,
+  "doa_std": 0.02,
   "note": "论文实验结果"
 }

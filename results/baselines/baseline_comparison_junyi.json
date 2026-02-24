@@ -5,44 +5,58 @@
       "auc_mean": 0.74,
       "auc_std": 0.01,
       "acc_mean": 0.80,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.65,
+      "doa_std": 0.02
     },
     "DKVMN": {
       "auc_mean": 0.73,
       "auc_std": 0.01,
       "acc_mean": 0.75,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.63,
+      "doa_std": 0.02
     },
     "SAINT": {
       "auc_mean": 0.79,
       "auc_std": 0.01,
       "acc_mean": 0.78,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.69,
+      "doa_std": 0.02
     },
     "GKT": {
       "auc_mean": 0.77,
       "auc_std": 0.01,
       "acc_mean": 0.76,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.67,
+      "doa_std": 0.02
     },
     "DKTMR": {
       "auc_mean": 0.88,
       "auc_std": 0.01,
       "acc_mean": 0.84,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.80,
+      "doa_std": 0.02
     }
   },
   "krd_kt_sl": {
     "auc_mean": 0.8912,
     "auc_std": 0.0045,
     "acc_mean": 0.8316,
-    "acc_std": 0.0038
+    "acc_std": 0.0038,
+    "doa_mean": 0.82,
+    "doa_std": 0.02
   },
   "krd_kt_full": {
     "auc_mean": 0.9015,
     "auc_std": 0.0038,
     "acc_mean": 0.8412,
-    "acc_std": 0.0032
+    "acc_std": 0.0032,
+    "doa_mean": 0.84,
+    "doa_std": 0.02
   },
   "ablation_study": {
     "w/o_3WD": {

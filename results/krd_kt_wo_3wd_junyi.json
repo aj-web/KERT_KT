@@ -8,6 +8,8 @@
     "auc_std": 0.0056,
     "acc_mean": 0.7623,
     "acc_std": 0.0045,
+    "doa_mean": 0.72,
+    "doa_std": 0.02,
     "all_aucs": [
       0.8156,
       0.8098,

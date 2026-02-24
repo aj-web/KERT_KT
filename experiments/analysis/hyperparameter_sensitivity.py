@@ -73,7 +73,7 @@ def run_sensitivity_experiment(dataset_name, param_name, param_value,
     config['max_k'] = config.get('max_k', 2)
     config['use_diff_msg'] = True
     config['use_neg_suppress'] = True
-    config['n_epochs'] = 50  # KRD-KT-SL
+    config['n_epochs'] = 100  # KRD-KT-SL (两阶段训练: Phase 1=50, Phase 2=50)
     
     # 如果测试的是 max_k，需要特殊处理
     if param_name == 'max_k':

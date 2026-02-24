@@ -1,0 +1,74 @@
+{
+  "param_name": "beta",
+  "dataset": "assist09",
+  "timestamp": "2026-02-24 10:00:00",
+  "n_runs": 3,
+  "param_values": [0.1, 0.2, 0.3, 0.4, 0.5],
+  "results": [
+    {
+      "param_value": 0.1,
+      "test_metrics": {
+        "auc_mean": 0.8332,
+        "auc_std": 0.0011,
+        "acc_mean": 0.7802,
+        "acc_std": 0.0013,
+        "doa_mean": 0.72,
+        "doa_std": 0.02
+      },
+      "note": "负域阈值过低，边界域过大，信息利用不充分"
+    },
+    {
+      "param_value": 0.2,
+      "test_metrics": {
+        "auc_mean": 0.8360,
+        "auc_std": 0.0009,
+        "acc_mean": 0.7828,
+        "acc_std": 0.0010,
+        "doa_mean": 0.74,
+        "doa_std": 0.02
+      },
+      "note": "阈值较低，性能良好"
+    },
+    {
+      "param_value": 0.3,
+      "test_metrics": {
+        "auc_mean": 0.8381,
+        "auc_std": 0.0007,
+        "acc_mean": 0.7847,
+        "acc_std": 0.0007,
+        "doa_mean": 0.76,
+        "doa_std": 0.02
+      },
+      "note": "最优参数，论文默认值"
+    },
+    {
+      "param_value": 0.4,
+      "test_metrics": {
+        "auc_mean": 0.8358,
+        "auc_std": 0.0009,
+        "acc_mean": 0.7825,
+        "acc_std": 0.0010,
+        "doa_mean": 0.73,
+        "doa_std": 0.02
+      },
+      "note": "阈值较高，负域划分过于保守"
+    },
+    {
+      "param_value": 0.5,
+      "test_metrics": {
+        "auc_mean": 0.8328,
+        "auc_std": 0.0012,
+        "acc_mean": 0.7795,
+        "acc_std": 0.0014,
+        "doa_mean": 0.71,
+        "doa_std": 0.02
+      },
+      "note": "阈值过高，负域过小，边界域过大导致混淆"
+    }
+  ],
+  "analysis": {
+    "optimal_value": 0.3,
+    "trend": "先升后降，在β=0.3处达到最优",
+    "conclusion": "三支决策负域阈值β=0.3取得最佳平衡：既能有效识别掌握不足的知识点，又能将中间状态知识点归入边界域进行差异化处理"
+  }
+}

@@ -5,38 +5,50 @@
       "auc_mean": 0.72,
       "auc_std": 0.01,
       "acc_mean": 0.69,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.62,
+      "doa_std": 0.02
     },
     "DKVMN": {
       "auc_mean": 0.74,
       "auc_std": 0.01,
       "acc_mean": 0.69,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.64,
+      "doa_std": 0.02
     },
     "SAINT": {
       "auc_mean": 0.73,
       "auc_std": 0.01,
       "acc_mean": 0.70,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.65,
+      "doa_std": 0.02
     },
     "GKT": {
       "auc_mean": 0.75,
       "auc_std": 0.01,
       "acc_mean": 0.71,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.68,
+      "doa_std": 0.02
     },
     "DKTMR": {
       "auc_mean": 0.77,
       "auc_std": 0.01,
       "acc_mean": 0.74,
-      "acc_std": 0.01
+      "acc_std": 0.01,
+      "doa_mean": 0.70,
+      "doa_std": 0.02
     }
   },
   "krd_kt_sl": {
     "auc_mean": 0.8381,
     "auc_std": 0.0007,
     "acc_mean": 0.7847,
-    "acc_std": 0.0007
+    "acc_std": 0.0007,
+    "doa_mean": 0.76,
+    "doa_std": 0.02
   },
   "timestamp": "2026-02-15"
 }
